@@ -5,8 +5,8 @@ enum
     ID_SPIN_HOURS,
     ID_SPIN_MINUTES,
     ID_CHECKBOX,
-    ID_SPIN_SECONDS,
+    ID_MESSAGE,
+    ID_DIA,
     ID_TIMER,
-    ID_BITMAP,
     ID_WINEXIT = 9
 };
