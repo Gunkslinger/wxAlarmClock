@@ -1,6 +1,7 @@
 #include "wx/any.h"
 #include "wx/colour.h"
 #include "wx/datetime.h"
+#include "wx/event.h"
 #include "wx/font.h"
 #include "wx/gtk/colour.h"
 #include "wx/longlong.h"
@@ -13,12 +14,15 @@
 #include <sstream>
 #include <iostream>
 #include "enums.hpp"
+#include "wx/tglbtn.h"
 #include "mainwindow.hpp"
+#include "alarmdia.hpp"
 
 AlarmControlFrame::AlarmControlFrame()
     : wxFrame(nullptr, wxID_ANY, "wxAlarmClock")
 {
     SetSize(600, 400);
+
     wxColour bgcolour(55, 55, 55, 255);
     wxColour fgcolour(220, 220, 200, 255);
     wxColour butbgcolour(75, 75, 75, 255);
@@ -33,13 +37,16 @@ AlarmControlFrame::AlarmControlFrame()
     spinMinute->SetRange(0, 59);
     spinMinute->SetBackgroundColour(bgcolour);
     spinMinute->SetForegroundColour(fgcolour);
-    checkBoxAMPM = new wxCheckBox(this, wxID_ANY, "AM");
+    toggleButtonAMPM = new wxToggleButton(this, wxID_ANY, "AM");
+    toggleButtonAMPM->SetValue(true);
+    toggleButtonAMPM->SetBackgroundColour(butbgcolour);
+    toggleButtonAMPM->SetForegroundColour(butfgcolour);
     spinSizer = new wxBoxSizer(wxHORIZONTAL);
     spinSizer->Add(spinHour);
     spinSizer->AddSpacer(10);
     spinSizer->Add(spinMinute);
     spinSizer->AddSpacer(10);
-    spinSizer->Add(checkBoxAMPM);
+    spinSizer->Add(toggleButtonAMPM);
     buttonStartStop = new wxButton(this, ID_STARTSTOP_BUTT, wxString("Start"));
     buttonStartStop->SetFont(f);
     buttonStartStop->SetForegroundColour(butfgcolour);
@@ -54,20 +61,26 @@ AlarmControlFrame::AlarmControlFrame()
     mainsizer->AddSpacer(10);
     mainsizer->Add(spinSizer, 0, 1);
     mainsizer->AddSpacer(20);
-    mainsizer->Add(buttonStartStop, 0, 1, 1);
+    mainsizer->Add(buttonStartStop, 0, wxALIGN_CENTER_HORIZONTAL, 1);
     mainsizer->AddSpacer(100);
-    mainsizer->Add(labelAlarmTime, 0, 1, 1);
+    mainsizer->Add(labelAlarmTime, 1, wxALIGN_CENTER_HORIZONTAL, 1);
     SetSizer(mainsizer);
     timer = new wxTimer(this);
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmControlFrame::StartStop, this, wxID_ANY);
     // Bind(wxEVT_MENU, &AlarmControlFrame::OnExit, this, wxID_EXIT);
     Bind(wxEVT_TIMER, &AlarmControlFrame::CountDown, this);
+    Bind(wxEVT_TOGGLEBUTTON, &AlarmControlFrame::OnToggle, this, wxID_ANY);
 }
 
 void AlarmControlFrame::OnExit(wxCommandEvent& event)
 {
     printf("OUCH!\n");
     Close();
+}
+
+void AlarmControlFrame::OnToggle(wxCommandEvent& event)
+{
+    toggleButtonAMPM->SetLabel(toggleButtonAMPM->GetValue() ? "AM":"PM");
 }
 
 bool start = false;
@@ -90,7 +103,7 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
 
         hour = userInputTime.GetHour();
         minute = userInputTime.GetMinute();
-        am = checkBoxAMPM->GetValue();
+        am = toggleButtonAMPM->GetValue();
 
         //timerseconds = spinHour->GetValue() * 3600 + spinMinute->GetValue() * 60;// + spinSeconds->GetValue();
         //start countdown timer with that value
@@ -100,6 +113,7 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
             wxString txt;
             txt.Printf("%d:%02d %s", hour, minute, am ? "am":"pm");
             labelAlarmTime->SetLabelText(txt);
+            mainsizer->Layout();
             printf("start time: %ls %ls\n", txt.t_str(), userInputTime.FormatDate().t_str());
             timer->Start(1000);
             this->SetTitle(txt);
@@ -118,7 +132,7 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
     wxDateTime currentTime = wxDateTime::Now();
     hour = spinHour->GetValue();
     minute = spinMinute->GetValue();
-    am = checkBoxAMPM->GetValue();
+    am = toggleButtonAMPM->GetValue();
     wxString txt;
     txt.Printf("%d:%02d %s", hour, minute, am ? "am":"pm");
     labelAlarmTime->SetLabelText(txt);
@@ -140,9 +154,10 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         start = false;
         timer->Stop();
         //alarm here
-        wxSound alarm("./cuckoo.wav");
-        alarm.Play(wxSOUND_ASYNC|wxSOUND_LOOP);
-        printf("ALARM! ALARM! ALARM!\n");
+        AlarmDia *dia = new AlarmDia();
+        // wxSound alarm("./cuckoo2.wav");
+        // alarm.Play(wxSOUND_ASYNC|wxSOUND_LOOP);
+        // printf("ALARM! ALARM! ALARM!\n");
         buttonStartStop->SetLabel("Start");
     }
 }
