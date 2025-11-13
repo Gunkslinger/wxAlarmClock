@@ -69,20 +69,17 @@ AlarmControlFrame::AlarmControlFrame()
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmControlFrame::StartStop, this, wxID_ANY);
     Bind(wxEVT_TIMER, &AlarmControlFrame::CountDown, this);
     Bind(wxEVT_TOGGLEBUTTON, &AlarmControlFrame::OnToggle, this, wxID_ANY);
-    //Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);    
 
 }
-
 
 void AlarmControlFrame::keyPressEvent(wxKeyEvent &event)
 {
-    printf("Key pressed\n");
     Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);
     alarm->Stop();
 }
+
 void AlarmControlFrame::OnExit(wxCommandEvent& event)
 {
-    printf("OUCH!\n");
     Close();
 }
 
@@ -99,7 +96,6 @@ bool am;
 
 void AlarmControlFrame::StartStop(wxCommandEvent& event)
 {
-    //dia->Show();
     start = !start;
     if(start){
         //if starting, get vals in spinners and convert them to seconds
@@ -123,7 +119,6 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
             txt.Printf("%d:%02d %s", hour, minute, am ? "am":"pm");
             labelAlarmTime->SetLabelText(txt);
             mainsizer->Layout();
-            printf("start time: %ls %ls\n", txt.t_str(), userInputTime.FormatDate().t_str());
             timer->Start(1000);
             this->SetTitle(txt);
         }
@@ -135,6 +130,7 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
     }
 }
 
+bool metro = false;
 
 void AlarmControlFrame::CountDown(wxTimerEvent& event)
 {
@@ -143,9 +139,15 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
     minute = spinMinute->GetValue();
     am = toggleButtonAMPM->GetValue();
     wxString txt;
-    txt.Printf("%d:%02d %s", hour, minute, am ? "am":"pm");
+    metro = !metro;
+
+    txt.Printf("%d:%02d %s",
+        hour, minute, am ? "am":"pm");
     labelAlarmTime->SetLabelText(txt);
-    
+    txt.Printf("%d:%02d %s %c",
+        hour, minute, am ? "am":"pm", metro ? '\\':'/');
+    this->SetTitle(txt);
+
     wxDateTime nextday;
 
     if(am){ // AM
