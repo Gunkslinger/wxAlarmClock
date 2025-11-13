@@ -112,9 +112,7 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
     }
 }
 
-// called after each time timer expires. timer is set to expire after 1 second
-// and this func should update the label by decrementing timerseconds to zero.
-// Once zero it should call alarm sound func
+
 void AlarmControlFrame::CountDown(wxTimerEvent& event)
 {
     wxDateTime currentTime = wxDateTime::Now();
@@ -125,7 +123,6 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
     txt.Printf("%d:%02d %s", hour, minute, am ? "am":"pm");
     labelAlarmTime->SetLabelText(txt);
     
-    wxLongLong diffSecs;
     wxDateTime nextday;
 
     if(am){ // AM
@@ -134,13 +131,12 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         nextday = userInputTime + wxTimeSpan(12);
     }
 
-    diffSecs = (nextday - currentTime).GetSeconds();
-    int diffHours = nextday.GetHour() - currentTime.GetHour();
-    printf("alarm time: %ls currenttime: %ls et: %d\n",
+    printf("alarm time: %ls currenttime: %ls cmp: %d\n",
         nextday.FormatISOTime().t_str(),
-        currentTime.FormatISOTime().t_str(), nextday.FormatISOTime().Cmp(currentTime.FormatISOTime()));
+        currentTime.FormatISOTime().t_str(),
+        nextday.FormatISOTime().Cmp(currentTime.FormatISOTime()));
 
-    if(diffSecs == 0){
+    if(nextday.FormatISOTime().Cmp(currentTime.FormatISOTime()) == 0){
         start = false;
         timer->Stop();
         //alarm here
@@ -151,11 +147,3 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
     }
 }
 
-// alarm time: 04:00:00 currenttime: 03:59:57 et: 1
-// alarm time: 04:00:00 currenttime: 03:59:58 et: 1
-// alarm time: 04:00:00 currenttime: 03:59:59 et: 1
-// alarm time: 04:00:00 currenttime: 04:00:00 et: 0
-// alarm time: 04:00:00 currenttime: 04:00:01 et: -1
-// alarm time: 04:00:00 currenttime: 04:00:02 et: -1
-// alarm time: 04:00:00 currenttime: 04:00:03 et: -1
-// alarm time: 04:00:00 currenttime: 04:00:04 et: -1
