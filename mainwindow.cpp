@@ -8,7 +8,6 @@
 #include "wx/stattext.h"
 #include "wx/sizer.h"
 #include "wx/string.h"
-#include "wx/sound.h"
 
 #include <string>
 #include <sstream>
@@ -16,7 +15,6 @@
 #include "enums.hpp"
 #include "wx/tglbtn.h"
 #include "mainwindow.hpp"
-#include "alarmdia.hpp"
 
 AlarmControlFrame::AlarmControlFrame()
     : wxFrame(nullptr, wxID_ANY, "wxAlarmClock")
@@ -66,12 +64,22 @@ AlarmControlFrame::AlarmControlFrame()
     mainsizer->Add(labelAlarmTime, 1, wxALIGN_CENTER_HORIZONTAL, 1);
     SetSizer(mainsizer);
     timer = new wxTimer(this);
+    alarm = new wxSound("./cuckoo2.wav");
+
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmControlFrame::StartStop, this, wxID_ANY);
-    // Bind(wxEVT_MENU, &AlarmControlFrame::OnExit, this, wxID_EXIT);
     Bind(wxEVT_TIMER, &AlarmControlFrame::CountDown, this);
     Bind(wxEVT_TOGGLEBUTTON, &AlarmControlFrame::OnToggle, this, wxID_ANY);
+    //Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);    
+
 }
 
+
+void AlarmControlFrame::keyPressEvent(wxKeyEvent &event)
+{
+    printf("Key pressed\n");
+    Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);
+    alarm->Stop();
+}
 void AlarmControlFrame::OnExit(wxCommandEvent& event)
 {
     printf("OUCH!\n");
@@ -91,6 +99,7 @@ bool am;
 
 void AlarmControlFrame::StartStop(wxCommandEvent& event)
 {
+    //dia->Show();
     start = !start;
     if(start){
         //if starting, get vals in spinners and convert them to seconds
@@ -154,10 +163,10 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         start = false;
         timer->Stop();
         //alarm here
-        AlarmDia *dia = new AlarmDia();
-        // wxSound alarm("./cuckoo2.wav");
-        // alarm.Play(wxSOUND_ASYNC|wxSOUND_LOOP);
-        // printf("ALARM! ALARM! ALARM!\n");
+        Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);    
+        this->SetFocus();
+         alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
+        printf("ALARM! ALARM! ALARM!\n");
         buttonStartStop->SetLabel("Start");
     }
 }

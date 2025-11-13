@@ -1,12 +1,8 @@
 enum
 {
-    ID_Open,
     ID_STARTSTOP_BUTT,
     ID_SPIN_HOURS,
     ID_SPIN_MINUTES,
-    ID_CHECKBOX,
     ID_MESSAGE,
-    ID_DIA,
-    ID_TIMER,
-    ID_WINEXIT = 9
+    ID_DIA = 10
 };
