@@ -1,0 +1,12 @@
+enum
+{
+    ID_Open,
+    ID_STARTSTOP_BUTT,
+    ID_SPIN_HOURS,
+    ID_SPIN_MINUTES,
+    ID_CHECKBOX,
+    ID_SPIN_SECONDS,
+    ID_TIMER,
+    ID_BITMAP,
+    ID_WINEXIT = 9
+};
