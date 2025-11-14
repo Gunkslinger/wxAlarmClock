@@ -9,12 +9,18 @@
 #include "wx/sizer.h"
 #include "wx/string.h"
 
+#include <cstdlib>
 #include <string>
 #include <sstream>
 #include <iostream>
 #include "enums.hpp"
 #include "wx/tglbtn.h"
 #include "mainwindow.hpp"
+#include <fstream>
+
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 
 AlarmControlFrame::AlarmControlFrame()
     : wxFrame(nullptr, wxID_ANY, "wxAlarmClock")
@@ -25,10 +31,10 @@ AlarmControlFrame::AlarmControlFrame()
     wxColour fgcolour(220, 220, 200, 255);
     wxColour butbgcolour(75, 75, 75, 255);
     wxColour butfgcolour(220, 220, 200, 255);
-    wxFont f(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
+    wxFont fnt(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
             wxFONTWEIGHT_NORMAL, false);
     spinHour = new wxSpinCtrl(this, ID_SPIN_HOURS);
-    spinHour->SetRange(0, 24);
+    spinHour->SetRange(0, 24); //12
     spinHour->SetBackgroundColour(bgcolour);
     spinHour->SetForegroundColour(fgcolour);
     spinMinute = new wxSpinCtrl(this, ID_SPIN_MINUTES);
@@ -46,11 +52,11 @@ AlarmControlFrame::AlarmControlFrame()
     spinSizer->AddSpacer(10);
     spinSizer->Add(toggleButtonAMPM);
     buttonStartStop = new wxButton(this, ID_STARTSTOP_BUTT, wxString("Start"));
-    buttonStartStop->SetFont(f);
+    buttonStartStop->SetFont(fnt);
     buttonStartStop->SetForegroundColour(butfgcolour);
     buttonStartStop->SetBackgroundColour(butbgcolour);
     labelAlarmTime = new wxStaticText(this, wxID_ANY, "00:00");
-    labelAlarmTime->SetFont(f);
+    labelAlarmTime->SetFont(fnt);
     this->SetBackgroundColour(bgcolour);
     this->SetForegroundColour(fgcolour);
     labelAlarmTime->SetBackgroundColour(bgcolour);
@@ -64,7 +70,19 @@ AlarmControlFrame::AlarmControlFrame()
     mainsizer->Add(labelAlarmTime, 1, wxALIGN_CENTER_HORIZONTAL, 1);
     SetSizer(mainsizer);
     timer = new wxTimer(this);
-    alarm = new wxSound("./cuckoo2.wav");
+
+    std::string cfg = std::getenv("HOME");
+    cfg.append("/.config/wxAlarmClock/wxAlarmClock.json");
+    std::ifstream f(cfg);
+    json data = json::parse(f);
+
+    std::string s = std::getenv("HOME");
+        s.append("/");
+        s.append(data["snddir"]);
+        s.append(data["sound"]);
+    printf("JSON VALUE: %s\n", s.c_str());
+
+    alarm = new wxSound(s);
 
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmControlFrame::StartStop, this, wxID_ANY);
     Bind(wxEVT_TIMER, &AlarmControlFrame::CountDown, this);
@@ -131,7 +149,8 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
 }
 
 bool metro = false;
-
+char m[4] = {'/', '|', '\\', '-'};
+int n = 0;
 void AlarmControlFrame::CountDown(wxTimerEvent& event)
 {
     wxDateTime currentTime = wxDateTime::Now();
@@ -140,12 +159,13 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
     am = toggleButtonAMPM->GetValue();
     wxString txt;
     metro = !metro;
+    if(n > 3) n = 0;
 
     txt.Printf("%d:%02d %s",
         hour, minute, am ? "am":"pm");
     labelAlarmTime->SetLabelText(txt);
     txt.Printf("%d:%02d %s %c",
-        hour, minute, am ? "am":"pm", metro ? '\\':'/');
+        hour, minute, am ? "am":"pm", m[n++]);
     this->SetTitle(txt);
 
     wxDateTime nextday;
