@@ -16,8 +16,8 @@
 #include "enums.hpp"
 #include "wx/tglbtn.h"
 #include "mainwindow.hpp"
-#include <fstream>
 
+#include <fstream>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -71,6 +71,7 @@ AlarmControlFrame::AlarmControlFrame()
     SetSizer(mainsizer);
     timer = new wxTimer(this);
 
+// Get and parse config file (only contains alarm audio file for now)
     std::string cfg = std::getenv("HOME");
     cfg.append("/.config/wxAlarmClock/wxAlarmClock.json");
     std::ifstream f(cfg);
@@ -78,7 +79,6 @@ AlarmControlFrame::AlarmControlFrame()
 
     std::string s = std::getenv("HOME");
         s.append("/");
-        s.append(data["snddir"]);
         s.append(data["sound"]);
     printf("JSON VALUE: %s\n", s.c_str());
 
@@ -107,7 +107,6 @@ void AlarmControlFrame::OnToggle(wxCommandEvent& event)
 }
 
 bool start = false;
-int timerseconds = 0;
 wxDateTime userInputTime;
 int hour, minute;
 bool am;
@@ -128,7 +127,6 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
         minute = userInputTime.GetMinute();
         am = toggleButtonAMPM->GetValue();
 
-        //timerseconds = spinHour->GetValue() * 3600 + spinMinute->GetValue() * 60;// + spinSeconds->GetValue();
         //start countdown timer with that value
         if(hour|minute)
         {
@@ -148,48 +146,47 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
     }
 }
 
-bool metro = false;
-char m[4] = {'/', '|', '\\', '-'};
-int n = 0;
+char propellor[4] = {'\\', '|', '/', '-'};
+int rot = 0;
 void AlarmControlFrame::CountDown(wxTimerEvent& event)
 {
     wxDateTime currentTime = wxDateTime::Now();
     hour = spinHour->GetValue();
     minute = spinMinute->GetValue();
     am = toggleButtonAMPM->GetValue();
-    wxString txt;
-    metro = !metro;
-    if(n > 3) n = 0;
 
+    wxString txt;
     txt.Printf("%d:%02d %s",
         hour, minute, am ? "am":"pm");
-    labelAlarmTime->SetLabelText(txt);
-    txt.Printf("%d:%02d %s %c",
-        hour, minute, am ? "am":"pm", m[n++]);
+        labelAlarmTime->SetLabelText(txt);
+    if(rot > 3) rot = 0;
+    txt.Printf("Alarm: %d:%02d %s %c",
+        hour, minute, am ? "am":"pm", propellor[rot++]);
     this->SetTitle(txt);
 
-    wxDateTime nextday;
+    wxDateTime alarmTime;
 
     if(am){ // AM
-        nextday = userInputTime;
+        alarmTime = userInputTime;
     }else{ // PM
-        nextday = userInputTime + wxTimeSpan(12);
+        alarmTime = userInputTime + wxTimeSpan(12);
     }
 
     printf("alarm time: %ls currenttime: %ls cmp: %d\n",
-        nextday.FormatISOTime().t_str(),
+        alarmTime.FormatISOTime().t_str(),
         currentTime.FormatISOTime().t_str(),
-        nextday.FormatISOTime().Cmp(currentTime.FormatISOTime()));
+        alarmTime.FormatISOTime().Cmp(currentTime.FormatISOTime()));
 
-    if(nextday.FormatISOTime().Cmp(currentTime.FormatISOTime()) == 0){
+    // Compare times as strings
+    if(alarmTime.FormatISOTime().Cmp(currentTime.FormatISOTime()) == 0){
         start = false;
         timer->Stop();
+        buttonStartStop->SetLabel("Start");
         //alarm here
         Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);    
         this->SetFocus();
-         alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
+        alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
         printf("ALARM! ALARM! ALARM!\n");
-        buttonStartStop->SetLabel("Start");
     }
 }
 
