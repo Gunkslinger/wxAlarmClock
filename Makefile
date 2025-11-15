@@ -1,6 +1,6 @@
 # C++ project
 C = clang++
-DEBUG = -g
+DEBUG_SYMBOLS = -g -DDEBUG
 CFLAGS = -I/usr/lib/wx/include/gtk3-unicode-3.2\
                  -I/usr/include/wx-3.2\
                 -DWXUSINGDLL -D__WXGTK3__ -D__WXGTK__ -D_FILE_OFFSET_BITS=64 #-ferror-limit=128
@@ -10,10 +10,10 @@ OBJS = main.o mainwindow.o
 all: wxAlarmClock
 
 main.o: main.cpp mainwindow.hpp
-		${C} ${DEBUG} ${CFLAGS} -c main.cpp -o main.o
+		${C} ${DEBUG_SYMBOLS} ${CFLAGS} -c main.cpp -o main.o
 
 mainwindow.o: mainwindow.cpp mainwindow.hpp enums.hpp
-		${C} ${DEBUG} ${CFLAGS} -c mainwindow.cpp -o mainwindow.o
+		${C} ${DEBUG_SYMBOLS} ${CFLAGS} -c mainwindow.cpp -o mainwindow.o
 
 wxAlarmClock: ${OBJS}
-		${C} ${DEBUG} ${LDFLAGS} ${OBJS} -o wxAlarmClock
+		${C} ${DEBUG_SYMBOLS} ${LDFLAGS} ${OBJS} -o wxAlarmClock

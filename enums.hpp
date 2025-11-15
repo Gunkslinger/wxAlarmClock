@@ -2,7 +2,5 @@ enum
 {
     ID_STARTSTOP_BUTT,
     ID_SPIN_HOURS,
-    ID_SPIN_MINUTES,
-    ID_MESSAGE,
-    ID_DIA = 10
+    ID_SPIN_MINUTES
 };

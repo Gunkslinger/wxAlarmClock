@@ -3,22 +3,16 @@
 #include "wx/datetime.h"
 #include "wx/event.h"
 #include "wx/font.h"
-#include "wx/gtk/colour.h"
-#include "wx/longlong.h"
 #include "wx/stattext.h"
 #include "wx/sizer.h"
-#include "wx/string.h"
-
-#include <cstdlib>
-#include <string>
-#include <sstream>
-#include <iostream>
-#include "enums.hpp"
 #include "wx/tglbtn.h"
+
+#include "enums.hpp"
 #include "mainwindow.hpp"
 
 #include <fstream>
 #include <nlohmann/json.hpp>
+
 using json = nlohmann::json;
 
 
@@ -80,8 +74,9 @@ AlarmControlFrame::AlarmControlFrame()
     std::string s = std::getenv("HOME");
         s.append("/");
         s.append(data["sound"]);
-    printf("JSON VALUE: %s\n", s.c_str());
-
+#ifdef DEBUG
+        printf("JSON VALUE: %s\n", s.c_str());
+#endif
     alarm = new wxSound(s);
 
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmControlFrame::StartStop, this, wxID_ANY);
@@ -111,6 +106,7 @@ wxDateTime userInputTime;
 int hour, minute;
 bool am;
 
+// This needs to tightened up!
 void AlarmControlFrame::StartStop(wxCommandEvent& event)
 {
     start = !start;
@@ -147,9 +143,10 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
 }
 
 char propellor[4] = {'\\', '|', '/', '-'};
-int rot = 0;
+
 void AlarmControlFrame::CountDown(wxTimerEvent& event)
 {
+    static int rotate = 0;
     wxDateTime currentTime = wxDateTime::Now();
     hour = spinHour->GetValue();
     minute = spinMinute->GetValue();
@@ -159,9 +156,10 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
     txt.Printf("%d:%02d %s",
         hour, minute, am ? "am":"pm");
         labelAlarmTime->SetLabelText(txt);
-    if(rot > 3) rot = 0;
+
+    if(rotate > 3) rotate = 0;
     txt.Printf("Alarm: %d:%02d %s %c",
-        hour, minute, am ? "am":"pm", propellor[rot++]);
+        hour, minute, am ? "am":"pm", propellor[rotate++]);
     this->SetTitle(txt);
 
     wxDateTime alarmTime;
@@ -172,13 +170,15 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         alarmTime = userInputTime + wxTimeSpan(12);
     }
 
+    int cmp = alarmTime.FormatISOTime().Cmp(currentTime.FormatISOTime());
+#ifdef DEBUG
     printf("alarm time: %ls currenttime: %ls cmp: %d\n",
         alarmTime.FormatISOTime().t_str(),
         currentTime.FormatISOTime().t_str(),
-        alarmTime.FormatISOTime().Cmp(currentTime.FormatISOTime()));
-
+        cmp);
+#endif
     // Compare times as strings
-    if(alarmTime.FormatISOTime().Cmp(currentTime.FormatISOTime()) == 0){
+    if(cmp == 0){
         start = false;
         timer->Stop();
         buttonStartStop->SetLabel("Start");
@@ -186,7 +186,9 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);    
         this->SetFocus();
         alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
+#ifdef DEBUG
         printf("ALARM! ALARM! ALARM!\n");
+#endif
     }
 }
 
