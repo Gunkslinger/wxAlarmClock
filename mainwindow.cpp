@@ -12,15 +12,16 @@
 
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <string>
 
 using json = nlohmann::json;
-
+json config_data;
 
 AlarmControlFrame::AlarmControlFrame()
     : wxFrame(nullptr, wxID_ANY, "wxAlarmClock")
 {
+    // Set up UI
     SetSize(600, 400);
-
     wxColour bgcolour(55, 55, 55, 255);
     wxColour fgcolour(220, 220, 200, 255);
     wxColour butbgcolour(75, 75, 75, 255);
@@ -65,18 +66,15 @@ AlarmControlFrame::AlarmControlFrame()
     SetSizer(mainsizer);
     timer = new wxTimer(this);
 
-// Get and parse config file (only contains alarm audio file for now)
+    // Get and parse config file (only contains alarm audio file for now)
     std::string cfg = std::getenv("HOME");
     cfg.append("/.config/wxAlarmClock/wxAlarmClock.json");
     std::ifstream f(cfg);
-    json data = json::parse(f);
+    config_data = json::parse(f);
 
     std::string s = std::getenv("HOME");
-        s.append("/");
-        s.append(data["sound"]);
-#ifdef DEBUG
-        printf("JSON VALUE: %s\n", s.c_str());
-#endif
+    s.append("/");
+    s.append(config_data["sound"]);
     alarm = new wxSound(s);
 
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmControlFrame::StartStop, this, wxID_ANY);
@@ -85,110 +83,126 @@ AlarmControlFrame::AlarmControlFrame()
 
 }
 
-void AlarmControlFrame::keyPressEvent(wxKeyEvent &event)
-{
-    Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);
-    alarm->Stop();
-}
-
-void AlarmControlFrame::OnExit(wxCommandEvent& event)
-{
-    Close();
-}
 
 void AlarmControlFrame::OnToggle(wxCommandEvent& event)
 {
     toggleButtonAMPM->SetLabel(toggleButtonAMPM->GetValue() ? "AM":"PM");
 }
 
+// Start/Stop timer
 bool start = false;
 wxDateTime userInputTime;
-int hour, minute;
-bool am;
 
-// This needs to tightened up!
 void AlarmControlFrame::StartStop(wxCommandEvent& event)
 {
     start = !start;
-    if(start){
-        //if starting, get vals in spinners and convert them to seconds
-        //this needs to be converted from "time of day" and possibly date to "seconds from now"
-        // for now (testing) just enter timeout directly
+    if(start)
+    {
+        // if starting, get vals in spinners
         userInputTime = wxDateTime::Now();
         userInputTime.SetHour(spinHour->GetValue());
         userInputTime.SetMinute(spinMinute->GetValue());
         userInputTime.SetSecond(0);
 
-        hour = userInputTime.GetHour();
-        minute = userInputTime.GetMinute();
-        am = toggleButtonAMPM->GetValue();
 
-        //start countdown timer with that value
-        if(hour|minute)
+        // start countdown timer if user input time is not zero
+        if(userInputTime.GetHour() | userInputTime.GetMinute())
         {
             buttonStartStop->SetLabelText("Stop");
             wxString txt;
-            txt.Printf("%d:%02d %s", hour, minute, am ? "am":"pm");
+            txt.Printf("%d:%02d %s",
+                userInputTime.GetHour(),
+                userInputTime.GetMinute(),
+                toggleButtonAMPM->GetValue() ? "am":"pm");
             labelAlarmTime->SetLabelText(txt);
             mainsizer->Layout();
             timer->Start(1000);
             this->SetTitle(txt);
+            spinHour->Enable(false);
+            spinMinute->Enable(false);
+            toggleButtonAMPM->Enable(false);
         }
     } else {
-        //if stopping (aborting) shut down timer
+        // if stopping (aborting) shut down timer
         timer->Stop();
+        spinHour->Enable(true);
+        spinMinute->Enable(true);
+        toggleButtonAMPM->Enable(true);
         buttonStartStop->SetLabel("Start");
         this->SetTitle("wxAlarmClock");
     }
 }
 
-char propellor[4] = {'\\', '|', '/', '-'};
 
+// Count down timer to alarm is running
 void AlarmControlFrame::CountDown(wxTimerEvent& event)
 {
+    char propellor[4] = {'\\', '|', '/', '-'};
     static int rotate = 0;
     wxDateTime currentTime = wxDateTime::Now();
-    hour = spinHour->GetValue();
-    minute = spinMinute->GetValue();
-    am = toggleButtonAMPM->GetValue();
-
     wxString txt;
-    txt.Printf("%d:%02d %s",
-        hour, minute, am ? "am":"pm");
-        labelAlarmTime->SetLabelText(txt);
 
-    if(rotate > 3) rotate = 0;
+    // Make Animated Title
+    if(rotate > 3)
+        rotate = 0;
     txt.Printf("Alarm: %d:%02d %s %c",
-        hour, minute, am ? "am":"pm", propellor[rotate++]);
+        userInputTime.GetHour(),
+        userInputTime.GetMinute(),
+        toggleButtonAMPM->GetValue() ? "am":"pm", propellor[rotate++]);
     this->SetTitle(txt);
-
+    
+    // Adjust user input time according to AM/PM
     wxDateTime alarmTime;
 
-    if(am){ // AM
+    if(toggleButtonAMPM->GetValue())
+    { // AM
         alarmTime = userInputTime;
     }else{ // PM
         alarmTime = userInputTime + wxTimeSpan(12);
     }
 
+    // Compare times as strings...
     int cmp = alarmTime.FormatISOTime().Cmp(currentTime.FormatISOTime());
+    
 #ifdef DEBUG
     printf("alarm time: %ls currenttime: %ls cmp: %d\n",
         alarmTime.FormatISOTime().t_str(),
         currentTime.FormatISOTime().t_str(),
         cmp);
 #endif
-    // Compare times as strings
-    if(cmp == 0){
+    // ...if equal, fire off alarm
+    if(cmp == 0)
+    {
         start = false;
         timer->Stop();
         buttonStartStop->SetLabel("Start");
-        //alarm here
+        // Bind key press events to shut alarm up
         Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);    
+        this->Raise();
         this->SetFocus();
+        // Build an external (pulse audio) volume adjustment command based on config file
+        int volume = config_data["volume"];
+        std::string cmd = "pactl set-sink-volume @DEFAULT_SINK@ ";
+        cmd.append(std::to_string(volume));
+        cmd.append("%");
+        system(cmd.c_str());
+
         alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
-#ifdef DEBUG
-        printf("ALARM! ALARM! ALARM!\n");
-#endif
     }
 }
 
+// Shut up alarm
+void AlarmControlFrame::keyPressEvent(wxKeyEvent &event)
+{
+    // Reset key press event binding.
+    Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);
+    alarm->Stop();
+    spinHour->Enable(true);
+    spinMinute->Enable(true);
+    toggleButtonAMPM->Enable(true);
+}
+            
+void AlarmControlFrame::OnExit(wxCommandEvent& event)
+{
+    Close();
+}
