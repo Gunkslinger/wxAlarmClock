@@ -4,6 +4,7 @@
 #include <wx/timer.h>
 #include <wx/event.h>
 #include "wx/sound.h"
+#include "pulse_audio.hpp"
 
 class AlarmControlFrame : public wxFrame
 {
@@ -18,6 +19,7 @@ public:
     wxBoxSizer *mainsizer;
     wxTimer *timer;
     wxSound *alarm;
+    std::string old_volume;
     void OnExit(wxCommandEvent& event);
     void OnToggle(wxCommandEvent& event);
     void StartStop(wxCommandEvent& event);

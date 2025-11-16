@@ -10,6 +10,7 @@
 #include "enums.hpp"
 #include "mainwindow.hpp"
 
+#include <cstddef>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -180,12 +181,15 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);    
         this->Raise();
         this->SetFocus();
+        // Get old volume
+        old_volume = get_old_vol();
         // Build an external (pulse audio) volume adjustment command based on config file
         int volume = config_data["volume"];
-        std::string cmd = "pactl set-sink-volume @DEFAULT_SINK@ ";
-        cmd.append(std::to_string(volume));
-        cmd.append("%");
-        system(cmd.c_str());
+        // std::string cmd = "pactl set-sink-volume @DEFAULT_SINK@ ";
+        // cmd.append(std::to_string(volume));
+        // cmd.append("%");
+        // system(cmd.c_str());
+        set_vol(volume);
 
         alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
     }
@@ -197,6 +201,7 @@ void AlarmControlFrame::keyPressEvent(wxKeyEvent &event)
     // Reset key press event binding.
     Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);
     alarm->Stop();
+    set_vol(std::stoi(old_volume));
     spinHour->Enable(true);
     spinMinute->Enable(true);
     toggleButtonAMPM->Enable(true);
