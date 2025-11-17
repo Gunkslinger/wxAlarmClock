@@ -19,7 +19,8 @@ public:
     wxBoxSizer *mainsizer;
     wxTimer *timer;
     wxSound *alarm;
-    std::string old_volume;
+    int old_volume;
+    int new_volume;
     void OnExit(wxCommandEvent& event);
     void OnToggle(wxCommandEvent& event);
     void StartStop(wxCommandEvent& event);

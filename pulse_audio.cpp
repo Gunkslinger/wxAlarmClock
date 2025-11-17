@@ -10,11 +10,13 @@
 // pulse audio and so I don't want to be bothered with learning the pulse audio API right now.
 // They work for my purposes. Error handling is garbage, I know.
 
+#include <pulse/error.h>
+#include <pulse/introspect.h>
+#include <string>
 #include "pulse_audio.hpp"
+int percentage;
 
-std::string percentage;
-
-std::string get_old_vol() {
+int get_old_vol() {
     FILE* pipe = popen("pactl get-sink-volume @DEFAULT_SINK@", "r");
     //if (!pipe) return NULL;
     
@@ -29,17 +31,19 @@ std::string get_old_vol() {
     std::smatch match;
     if (std::regex_search(result, match, pattern)) {
         // Extract the percentage value
-        percentage = match[1].str();
+        percentage = std::stoi(match[1].str());
+        std::cout << "Old volume percentage " << percentage << std::endl;
     } else {
         std::cout << "No percentage found." << std::endl;
     }
     return percentage;
 }
 
-void set_vol(int vol)
+void set_vol(int new_vol)
 {
+    std::cout << "New volume percentage " << new_vol << std::endl;
     std::string cmd = "pactl set-sink-volume @DEFAULT_SINK@ ";
-    cmd.append(std::to_string(vol));
+    cmd.append(std::to_string(new_vol));
     cmd.append("%");
     system(cmd.c_str());
 }
