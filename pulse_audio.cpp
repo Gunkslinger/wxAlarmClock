@@ -10,15 +10,18 @@
 // pulse audio and so I don't want to be bothered with learning the pulse audio API right now.
 // They work for my purposes. Error handling is garbage, I know.
 
-#include <pulse/error.h>
-#include <pulse/introspect.h>
+#include <iostream>
 #include <string>
 #include "pulse_audio.hpp"
 int percentage;
 
 int get_old_vol() {
     FILE* pipe = popen("pactl get-sink-volume @DEFAULT_SINK@", "r");
-    //if (!pipe) return NULL;
+    if (!pipe)
+    {
+        std:std::cerr << "Can't open pipe in pulse_audio.cpp:get_old_vol()" << std::endl;
+        return -1;
+    }
     
     char buffer[128];
     std::string result;
