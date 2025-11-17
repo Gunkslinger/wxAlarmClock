@@ -146,20 +146,19 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
 void AlarmControlFrame::MonitorIdle() {
     Display *dpy = XOpenDisplay(NULL);
     Window w = DefaultRootWindow(dpy);
-    XScreenSaverInfo *mit_info = XScreenSaverAllocInfo();
-    XScreenSaverQueryInfo(dpy, w, mit_info);
-    char s[256];
-    int prev_idle = mit_info->idle;
+    XScreenSaverInfo *ss_info = XScreenSaverAllocInfo();
+    XScreenSaverQueryInfo(dpy, w, ss_info);
+    int prev_idle = ss_info->idle;
     while(1){ // alarm is playing
-        usleep(100);
-        XScreenSaverQueryInfo(dpy, w, mit_info);
-        if(mit_info->idle >= prev_idle){
-            prev_idle = mit_info->idle;
+        usleep(1000);
+        XScreenSaverQueryInfo(dpy, w, ss_info);
+        if(ss_info->idle > prev_idle){
+            prev_idle = ss_info->idle;
         } else {
-            XFree(mit_info);
             wxCommandEvent e(wxEVT_CHAR_HOOK);
             wxPostEvent(this, e);
-            printf("Posting event. idle time: %zu\n", mit_info->idle);
+            printf("Posting event. idle time (ms): %zu\n", ss_info->idle);
+            XFree(ss_info);
             return;
         }
     }
@@ -232,7 +231,7 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         set_vol(new_volume);
 
         alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
-        MonitorIdle(); // new func to monitor ketboard globally
+        MonitorIdle(); // new func to monitor keyboard and mouse for activity globally
     }
 }
 
@@ -240,9 +239,10 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
 void AlarmControlFrame::keyPressEvent(wxKeyEvent &event)
 {
     // We reveived an angry key press from the sleeping user,
-    // so reset key press event binding.
+    // so reset key press event binding, silence the alarm, restore old volume, and reenable UI.
     Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);
     alarm->Stop();
+    sleep(1); // hack: give play buffer a chance to drain before changing volume
     set_vol(old_volume); // restore old volume
     spinHour->Enable(true);
     spinMinute->Enable(true);
