@@ -7,6 +7,11 @@
 #include "wx/sizer.h"
 #include "wx/tglbtn.h"
 
+#include "wx/event.h"
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/extensions/scrnsaver.h>
+
 #include "enums.hpp"
 #include "mainwindow.hpp"
 
@@ -67,7 +72,7 @@ AlarmControlFrame::AlarmControlFrame()
     SetSizer(mainsizer);
     timer = new wxTimer(this);
 
-    // Get and parse config file (only contains alarm audio file for now)
+    // Get and parse config file (only contains alarm audio file and volume for now)
     std::string cfg = std::getenv("HOME");
     cfg.append("/.config/wxAlarmClock/wxAlarmClock.json");
     std::ifstream f(cfg);
@@ -134,6 +139,31 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
     }
 }
 
+// Monitor for keyboard or mouse activity and post an event if detected
+// This indicates that the user wants the alarm to stop regardless of the
+// window's focus, minimization, or Z value in the window stack.
+
+void AlarmControlFrame::MonitorIdle() {
+    Display *dpy = XOpenDisplay(NULL);
+    Window w = DefaultRootWindow(dpy);
+    XScreenSaverInfo *mit_info = XScreenSaverAllocInfo();
+    XScreenSaverQueryInfo(dpy, w, mit_info);
+    char s[256];
+    int prev_idle = mit_info->idle;
+    while(1){ // alarm is playing
+        usleep(100);
+        XScreenSaverQueryInfo(dpy, w, mit_info);
+        if(mit_info->idle >= prev_idle){
+            prev_idle = mit_info->idle;
+        } else {
+            XFree(mit_info);
+            wxCommandEvent e(wxEVT_CHAR_HOOK);
+            wxPostEvent(this, e);
+            printf("Posting event. idle time: %zu\n", mit_info->idle);
+            return;
+        }
+    }
+}
 
 // Count down timer to alarm is running
 void AlarmControlFrame::CountDown(wxTimerEvent& event)
@@ -179,28 +209,45 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         buttonStartStop->SetLabel("Start");
         // Bind key press events to shut alarm up
         Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);    
-        this->Raise();
-        this->SetFocus();
-        // Get old volume
-        old_volume = get_old_vol();
-        // Build an external (pulse audio) volume adjustment command based on config file
+        // Raise and focus window in anticipation of sleepy user angrily pressing a random
+        // key to stop the damned alarm because he doesn't want to wait for the monitor to
+        // boot up.
+
+        // BUG: Focus is not being granted in some cases even thought HasFocus is reporting true. Why?
+        // printf("before SetFocus HasFocus is %s\n", this->HasFocus()? "true":"false"); //false reporting
+        // this->Restore();
+        // this->Iconize(false);
+        // this->Maximize(false);//https://docs.wxwidgets.org/3.1/classwx_top_level_window.html#a21e2d58a530c431c26ff098e4f75f249
+        // this->Raise();
+        // this->SetFocus();
+        // printf("after SetFocus HasFocus is %s\n", this->HasFocus()? "true":"false"); //false reporting
+        // get user-specified volume from config
         new_volume = config_data["volume"];
+        // Get old volume to reset to pre-alarm setting after alarm stops
+        old_volume = get_old_vol();
+        // if old volume couldn't be gotten (hasn't happened yet)
+        // just set old volume to new volume and walk away
+        if(old_volume < 0) old_volume = new_volume;
+        
         set_vol(new_volume);
 
         alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
+        MonitorIdle(); // new func to monitor ketboard globally
     }
 }
 
-// Shut up alarm
+// SHUT UP, DAMNED ALARM!
 void AlarmControlFrame::keyPressEvent(wxKeyEvent &event)
 {
-    // Reset key press event binding.
+    // We reveived an angry key press from the sleeping user,
+    // so reset key press event binding.
     Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);
     alarm->Stop();
-    set_vol(old_volume);
+    set_vol(old_volume); // restore old volume
     spinHour->Enable(true);
     spinMinute->Enable(true);
     toggleButtonAMPM->Enable(true);
+    printf("SHUT UP\n");
 }
             
 void AlarmControlFrame::OnExit(wxCommandEvent& event)

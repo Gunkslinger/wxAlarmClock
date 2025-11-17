@@ -38,6 +38,7 @@ int get_old_vol() {
         std::cout << "Old volume percentage " << percentage << std::endl;
     } else {
         std::cout << "No percentage found." << std::endl;
+        return -1;
     }
     return percentage;
 }

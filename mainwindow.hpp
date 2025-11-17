@@ -25,5 +25,6 @@ public:
     void OnToggle(wxCommandEvent& event);
     void StartStop(wxCommandEvent& event);
     void CountDown(wxTimerEvent& event);
+    void MonitorIdle();
     void keyPressEvent(wxKeyEvent& event);
 };
