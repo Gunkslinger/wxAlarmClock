@@ -4,7 +4,7 @@
 // int volume percentage param that was found in the config file, and is used to set
 // the volume for the alarm.
 
-// These two funcs are funcky. They merely build shell commands to to call pulse audio
+// These two funcs are funcky. They merely build shell commands to call pulse audio
 // utilities.
 // I decided to write them this way becuase I can't be sure that I'll always be using
 // pulse audio and so I don't want to be bothered with learning the pulse audio API right now.

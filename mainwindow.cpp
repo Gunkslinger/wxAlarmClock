@@ -27,25 +27,40 @@ AlarmControlFrame::AlarmControlFrame()
     : wxFrame(nullptr, wxID_ANY, "wxAlarmClock")
 {
     // Set up UI
-    SetSize(600, 400);
-    wxColour bgcolour(55, 55, 55, 255);
-    wxColour fgcolour(220, 220, 200, 255);
-    wxColour butbgcolour(75, 75, 75, 255);
-    wxColour butfgcolour(220, 220, 200, 255);
+    SetSize(400, 300);
+    // Get and parse config file (only contains alarm audio file and volume for now)
+    std::string cfg = std::getenv("HOME");
+    cfg.append("/.config/wxAlarmClock/wxAlarmClock.json");
+    std::ifstream f(cfg);
+    config_data = json::parse(f);
+
+    std::string rgb;
+    rgb.append(config_data["bgcolor"]);
+    wxColour bgcolor(rgb);
+    rgb.clear();
+    rgb.append(config_data["fgcolor"]);
+    wxColour fgcolor(rgb);
+    rgb.clear();
+    rgb.append(config_data["butbgcolor"]);
+    wxColour butbgcolor(rgb);
+    rgb.clear();
+    rgb.append(config_data["butfgcolor"]);
+    wxColour butfgcolor(rgb);
+
     wxFont fnt(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
             wxFONTWEIGHT_NORMAL, false);
     spinHour = new wxSpinCtrl(this, ID_SPIN_HOURS);
-    spinHour->SetRange(0, 24); //12
-    spinHour->SetBackgroundColour(bgcolour);
-    spinHour->SetForegroundColour(fgcolour);
+    spinHour->SetRange(0, 12);
+    spinHour->SetBackgroundColour(bgcolor);
+    spinHour->SetForegroundColour(fgcolor);
     spinMinute = new wxSpinCtrl(this, ID_SPIN_MINUTES);
     spinMinute->SetRange(0, 59);
-    spinMinute->SetBackgroundColour(bgcolour);
-    spinMinute->SetForegroundColour(fgcolour);
+    spinMinute->SetBackgroundColour(bgcolor);
+    spinMinute->SetForegroundColour(fgcolor);
     toggleButtonAMPM = new wxToggleButton(this, wxID_ANY, "AM");
     toggleButtonAMPM->SetValue(true);
-    toggleButtonAMPM->SetBackgroundColour(butbgcolour);
-    toggleButtonAMPM->SetForegroundColour(butfgcolour);
+    toggleButtonAMPM->SetBackgroundColour(butbgcolor);
+    toggleButtonAMPM->SetForegroundColour(butfgcolor);
     spinSizer = new wxBoxSizer(wxHORIZONTAL);
     spinSizer->Add(spinHour);
     spinSizer->AddSpacer(10);
@@ -54,29 +69,23 @@ AlarmControlFrame::AlarmControlFrame()
     spinSizer->Add(toggleButtonAMPM);
     buttonStartStop = new wxButton(this, ID_STARTSTOP_BUTT, wxString("Start"));
     buttonStartStop->SetFont(fnt);
-    buttonStartStop->SetForegroundColour(butfgcolour);
-    buttonStartStop->SetBackgroundColour(butbgcolour);
+    buttonStartStop->SetForegroundColour(butfgcolor);
+    buttonStartStop->SetBackgroundColour(butbgcolor);
     labelAlarmTime = new wxStaticText(this, wxID_ANY, "00:00");
     labelAlarmTime->SetFont(fnt);
-    this->SetBackgroundColour(bgcolour);
-    this->SetForegroundColour(fgcolour);
-    labelAlarmTime->SetBackgroundColour(bgcolour);
-    labelAlarmTime->SetForegroundColour(fgcolour);
+    SetBackgroundColour(bgcolor);
+    SetForegroundColour(fgcolor);
+    labelAlarmTime->SetBackgroundColour(bgcolor);
+    labelAlarmTime->SetForegroundColour(fgcolor);
     mainsizer = new wxBoxSizer(wxVERTICAL);
     mainsizer->AddSpacer(10);
     mainsizer->Add(spinSizer, 0, 1);
     mainsizer->AddSpacer(20);
     mainsizer->Add(buttonStartStop, 0, wxALIGN_CENTER_HORIZONTAL, 1);
-    mainsizer->AddSpacer(100);
+    mainsizer->AddSpacer(20);
     mainsizer->Add(labelAlarmTime, 1, wxALIGN_CENTER_HORIZONTAL, 1);
     SetSizer(mainsizer);
     timer = new wxTimer(this);
-
-    // Get and parse config file (only contains alarm audio file and volume for now)
-    std::string cfg = std::getenv("HOME");
-    cfg.append("/.config/wxAlarmClock/wxAlarmClock.json");
-    std::ifstream f(cfg);
-    config_data = json::parse(f);
 
     std::string s = std::getenv("HOME");
     s.append("/");
