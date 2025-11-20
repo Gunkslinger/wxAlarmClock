@@ -3,6 +3,7 @@
 #include "wx/datetime.h"
 #include "wx/event.h"
 #include "wx/font.h"
+#include "wx/gtk/colour.h"
 #include "wx/stattext.h"
 #include "wx/sizer.h"
 #include "wx/tglbtn.h"
@@ -34,6 +35,7 @@ AlarmControlFrame::AlarmControlFrame()
     std::ifstream f(cfg);
     config_data = json::parse(f);
 
+    // Get UI colors from the config file
     std::string rgb;
     rgb.append(config_data["bgcolor"]);
     wxColour bgcolor(rgb);
@@ -46,6 +48,12 @@ AlarmControlFrame::AlarmControlFrame()
     rgb.clear();
     rgb.append(config_data["butfgcolor"]);
     wxColour butfgcolor(rgb);
+    rgb.clear();
+    rgb.append(config_data["startbutbgcolor"]);
+    startbutbgcolor = new wxColour(rgb);
+    rgb.clear();
+    rgb.append(config_data["stopbutbgcolor"]);
+    stopbutbgcolor = new wxColour(rgb);
 
     wxFont fnt(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
             wxFONTWEIGHT_NORMAL, false);
@@ -70,7 +78,7 @@ AlarmControlFrame::AlarmControlFrame()
     buttonStartStop = new wxButton(this, ID_STARTSTOP_BUTT, wxString("Start"));
     buttonStartStop->SetFont(fnt);
     buttonStartStop->SetForegroundColour(butfgcolor);
-    buttonStartStop->SetBackgroundColour(butbgcolor);
+    buttonStartStop->SetBackgroundColour(*startbutbgcolor);
     labelAlarmTime = new wxStaticText(this, wxID_ANY, "00:00");
     labelAlarmTime->SetFont(fnt);
     SetBackgroundColour(bgcolor);
@@ -124,6 +132,7 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
         if(userInputTime.GetHour() | userInputTime.GetMinute())
         {
             buttonStartStop->SetLabelText("Stop");
+            buttonStartStop->SetBackgroundColour(*stopbutbgcolor);
             wxString txt;
             txt.Printf("%d:%02d %s",
                 userInputTime.GetHour(),
@@ -144,6 +153,7 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
         spinMinute->Enable(true);
         toggleButtonAMPM->Enable(true);
         buttonStartStop->SetLabel("Start");
+        buttonStartStop->SetBackgroundColour(*startbutbgcolor);
         this->SetTitle("wxAlarmClock");
     }
 }
@@ -215,8 +225,9 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         start = false;
         timer->Stop();
         buttonStartStop->SetLabel("Start");
+        buttonStartStop->SetBackgroundColour(*startbutbgcolor);
         // Bind key press events to shut alarm up
-        Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);    
+        Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::AnyUserActivityEvent, this);    
         // Raise and focus window in anticipation of sleepy user angrily pressing a random
         // key to stop the damned alarm because he doesn't want to wait for the monitor to
         // boot up.
@@ -245,11 +256,11 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
 }
 
 // SHUT UP, DAMNED ALARM!
-void AlarmControlFrame::keyPressEvent(wxKeyEvent &event)
+void AlarmControlFrame::AnyUserActivityEvent(wxKeyEvent &event)
 {
     // We reveived an angry key press from the sleeping user,
     // so reset key press event binding, silence the alarm, restore old volume, and reenable UI.
-    Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::keyPressEvent, this);
+    Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::AnyUserActivityEvent, this);
     alarm->Stop();
     sleep(1); // hack: give play buffer a chance to drain before changing volume
     set_vol(old_volume); // restore old volume

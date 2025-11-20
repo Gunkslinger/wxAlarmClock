@@ -14,6 +14,8 @@ public:
     wxSpinCtrl *spinMinute;
     wxToggleButton *toggleButtonAMPM;
     wxButton *buttonStartStop;
+    wxColour *startbutbgcolor;
+    wxColour *stopbutbgcolor;
     wxStaticText* labelAlarmTime;
     wxBoxSizer *spinSizer;
     wxBoxSizer *mainsizer;
@@ -26,5 +28,5 @@ public:
     void StartStop(wxCommandEvent& event);
     void CountDown(wxTimerEvent& event);
     void MonitorIdle();
-    void keyPressEvent(wxKeyEvent& event);
+    void AnyUserActivityEvent(wxKeyEvent& event);
 };
