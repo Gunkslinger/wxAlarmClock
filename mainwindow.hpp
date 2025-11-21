@@ -23,10 +23,10 @@ public:
     wxSound *alarm;
     int old_volume;
     int new_volume;
-    void OnExit(wxCommandEvent& event);
     void OnToggle(wxCommandEvent& event);
-    void StartStop(wxCommandEvent& event);
-    void CountDown(wxTimerEvent& event);
+    void OnStartStop(wxCommandEvent& event);
+    void OnCountDown(wxTimerEvent& event);
     void MonitorIdle();
-    void AnyUserActivityEvent(wxKeyEvent& event);
+    void OnAnyUserActivity(wxKeyEvent& event);
+    void OnExit(wxCommandEvent& event);
 };

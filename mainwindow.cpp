@@ -28,7 +28,7 @@ AlarmControlFrame::AlarmControlFrame()
     : wxFrame(nullptr, wxID_ANY, "wxAlarmClock")
 {
     // Set up UI
-    SetSize(400, 300);
+    SetSize(420, 300);
     // Get and parse config file (only contains alarm audio file and volume for now)
     std::string cfg = std::getenv("HOME");
     cfg.append("/.config/wxAlarmClock/wxAlarmClock.json");
@@ -58,7 +58,7 @@ AlarmControlFrame::AlarmControlFrame()
     wxFont fnt(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
             wxFONTWEIGHT_NORMAL, false);
     spinHour = new wxSpinCtrl(this, ID_SPIN_HOURS);
-    spinHour->SetRange(0, 12);
+    spinHour->SetRange(1, 12);
     spinHour->SetBackgroundColour(bgcolor);
     spinHour->SetForegroundColour(fgcolor);
     spinMinute = new wxSpinCtrl(this, ID_SPIN_MINUTES);
@@ -100,8 +100,8 @@ AlarmControlFrame::AlarmControlFrame()
     s.append(config_data["sound"]);
     alarm = new wxSound(s);
 
-    Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmControlFrame::StartStop, this, wxID_ANY);
-    Bind(wxEVT_TIMER, &AlarmControlFrame::CountDown, this);
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmControlFrame::OnStartStop, this, wxID_ANY);
+    Bind(wxEVT_TIMER, &AlarmControlFrame::OnCountDown, this);
     Bind(wxEVT_TOGGLEBUTTON, &AlarmControlFrame::OnToggle, this, wxID_ANY);
 
 }
@@ -112,11 +112,11 @@ void AlarmControlFrame::OnToggle(wxCommandEvent& event)
     toggleButtonAMPM->SetLabel(toggleButtonAMPM->GetValue() ? "AM":"PM");
 }
 
-// Start/Stop timer
+// Start/Stop button event
 bool start = false;
 wxDateTime userInputTime;
 
-void AlarmControlFrame::StartStop(wxCommandEvent& event)
+void AlarmControlFrame::OnStartStop(wxCommandEvent& event)
 {
     start = !start;
     if(start)
@@ -158,33 +158,8 @@ void AlarmControlFrame::StartStop(wxCommandEvent& event)
     }
 }
 
-// Monitor for keyboard or mouse activity and post an event if detected
-// This indicates that the user wants the alarm to stop regardless of the
-// window's focus, minimization, or Z value in the window stack.
-
-void AlarmControlFrame::MonitorIdle() {
-    Display *dpy = XOpenDisplay(NULL);
-    Window w = DefaultRootWindow(dpy);
-    XScreenSaverInfo *ss_info = XScreenSaverAllocInfo();
-    XScreenSaverQueryInfo(dpy, w, ss_info);
-    int prev_idle = ss_info->idle;
-    while(1){ // alarm is playing
-        usleep(1000);
-        XScreenSaverQueryInfo(dpy, w, ss_info);
-        if(ss_info->idle > prev_idle){
-            prev_idle = ss_info->idle;
-        } else {
-            wxCommandEvent e(wxEVT_CHAR_HOOK);
-            wxPostEvent(this, e);
-            printf("Posting event. idle time (ms): %zu\n", ss_info->idle);
-            XFree(ss_info);
-            return;
-        }
-    }
-}
-
-// Count down timer to alarm is running
-void AlarmControlFrame::CountDown(wxTimerEvent& event)
+// Timer event handler to count down until alarm should play
+void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
 {
     char propellor[4] = {'\\', '|', '/', '-'};
     static int rotate = 0;
@@ -219,27 +194,18 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         currentTime.FormatISOTime().t_str(),
         cmp);
 #endif
-    // ...if equal, fire off alarm
+
+// ...if equal, fire off alarm
     if(cmp == 0)
     {
         start = false;
         timer->Stop();
         buttonStartStop->SetLabel("Start");
         buttonStartStop->SetBackgroundColour(*startbutbgcolor);
-        // Bind key press events to shut alarm up
-        Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::AnyUserActivityEvent, this);    
-        // Raise and focus window in anticipation of sleepy user angrily pressing a random
-        // key to stop the damned alarm because he doesn't want to wait for the monitor to
-        // boot up.
 
-        // BUG: Focus is not being granted in some cases even thought HasFocus is reporting true. Why?
-        // printf("before SetFocus HasFocus is %s\n", this->HasFocus()? "true":"false"); //false reporting
-        // this->Restore();
-        // this->Iconize(false);
-        // this->Maximize(false);//https://docs.wxwidgets.org/3.1/classwx_top_level_window.html#a21e2d58a530c431c26ff098e4f75f249
-        // this->Raise();
-        // this->SetFocus();
-        // printf("after SetFocus HasFocus is %s\n", this->HasFocus()? "true":"false"); //false reporting
+        // Bind key press events to shut alarm up
+        Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::OnAnyUserActivity, this);    
+
         // get user-specified volume from config
         new_volume = config_data["volume"];
         // Get old volume to reset to pre-alarm setting after alarm stops
@@ -247,27 +213,64 @@ void AlarmControlFrame::CountDown(wxTimerEvent& event)
         // if old volume couldn't be gotten (hasn't happened yet)
         // just set old volume to new volume and walk away
         if(old_volume < 0) old_volume = new_volume;
-        
         set_vol(new_volume);
-
+        
         alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
+        
+        // BUG: Focus is not being granted in some cases even thought HasFocus is reporting true. Why?
+        // Focus is needed in order to receive keypress events, which are used to silence the alarm.
+        
+        // Becuase of this problem I've written my own function that queries that status
+        // of XScreenSaver and if it's timer has been reset since the last query then an event
+        // is posted which causes the alarm sound to stop playing. This way this app window does
+        // not need to be raised or focused. It can be "iconized" into the system tray or behind
+        // another window and it will still receive keypresses and mouse motions to trigger the
+        // shut off.
         MonitorIdle(); // new func to monitor keyboard and mouse for activity globally
     }
 }
 
+// Monitor for keyboard or mouse activity and post an event if detected
+// This indicates that the user wants the alarm to stop regardless of the
+// window's focus, minimization, or Z value in the window stack.
+
+void AlarmControlFrame::MonitorIdle() {
+    Display *dpy = XOpenDisplay(NULL);
+    Window w = DefaultRootWindow(dpy);
+    XScreenSaverInfo *ss_info = XScreenSaverAllocInfo();
+    XScreenSaverQueryInfo(dpy, w, ss_info);
+    int prev_idle = ss_info->idle;
+    while(1){ // alarm is playing
+        usleep(1000);
+        XScreenSaverQueryInfo(dpy, w, ss_info);
+        if(ss_info->idle > prev_idle){
+            prev_idle = ss_info->idle;
+        } else {
+            // post event to trigger shutting the alarm off (OnAnyUserActivity())
+            wxCommandEvent e(wxEVT_CHAR_HOOK);
+            wxPostEvent(this, e);
+            printf("Posting event. idle time (ms): %zu\n", ss_info->idle);
+            XFree(ss_info);
+            return;
+        }
+    }
+}
+
 // SHUT UP, DAMNED ALARM!
-void AlarmControlFrame::AnyUserActivityEvent(wxKeyEvent &event)
+// We reveived an angry key press or something from the sleeping user,
+// so reset key press event binding, silence the alarm, restore old volume,
+// and reenable UI.
+
+void AlarmControlFrame::OnAnyUserActivity(wxKeyEvent &event)
 {
-    // We reveived an angry key press from the sleeping user,
-    // so reset key press event binding, silence the alarm, restore old volume, and reenable UI.
-    Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::AnyUserActivityEvent, this);
+    Unbind(wxEVT_CHAR_HOOK, &AlarmControlFrame::OnAnyUserActivity, this);
     alarm->Stop();
     sleep(1); // hack: give play buffer a chance to drain before changing volume
     set_vol(old_volume); // restore old volume
     spinHour->Enable(true);
     spinMinute->Enable(true);
     toggleButtonAMPM->Enable(true);
-    printf("SHUT UP\n");
+    printf("SHUT UP!!\n");
 }
             
 void AlarmControlFrame::OnExit(wxCommandEvent& event)

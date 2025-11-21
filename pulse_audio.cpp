@@ -1,11 +1,13 @@
-// Volume control functions for pulse audio. get_old_vol() returns a std::string with the
+// Volume control functions for pulse audio. get_old_vol() returns an int with the
 // volume percentage before setting the volume to play the alarm at. This is so that the
-// old volume can be restored after the alaem has stopped playing. set_vol() takes an
+// old volume can be restored after the alarm has stopped playing. set_vol() takes an
 // int volume percentage param that was found in the config file, and is used to set
 // the volume for the alarm.
-
+//
 // These two funcs are funcky. They merely build shell commands to call pulse audio
-// utilities.
+// utilities and so depend on them being installed (default on Arch if you've installed
+// the Pulse Audio server).
+//
 // I decided to write them this way becuase I can't be sure that I'll always be using
 // pulse audio and so I don't want to be bothered with learning the pulse audio API right now.
 // They work for my purposes. Error handling is garbage, I know.
