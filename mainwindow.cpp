@@ -54,7 +54,9 @@ AlarmControlFrame::AlarmControlFrame()
     rgb.clear();
     rgb.append(config_data["stopbutbgcolor"]);
     stopbutbgcolor = new wxColour(rgb);
-
+    
+    SetBackgroundColour(bgcolor);
+    SetForegroundColour(fgcolor);
     wxFont fnt(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
             wxFONTWEIGHT_NORMAL, false);
     spinHour = new wxSpinCtrl(this, ID_SPIN_HOURS);
@@ -81,8 +83,6 @@ AlarmControlFrame::AlarmControlFrame()
     buttonStartStop->SetBackgroundColour(*startbutbgcolor);
     labelAlarmTime = new wxStaticText(this, wxID_ANY, "00:00");
     labelAlarmTime->SetFont(fnt);
-    SetBackgroundColour(bgcolor);
-    SetForegroundColour(fgcolor);
     labelAlarmTime->SetBackgroundColour(bgcolor);
     labelAlarmTime->SetForegroundColour(fgcolor);
     mainsizer = new wxBoxSizer(wxVERTICAL);
@@ -188,25 +188,25 @@ void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
     // Compare times as strings...
     int cmp = alarmTime.FormatISOTime().Cmp(currentTime.FormatISOTime());
     
-#ifdef DEBUG
+#ifdef DEBUG // in Makefile
     printf("alarm time: %ls currenttime: %ls cmp: %d\n",
         alarmTime.FormatISOTime().t_str(),
         currentTime.FormatISOTime().t_str(),
         cmp);
 #endif
 
-// ...if equal, fire off alarm
+    // ...if equal, fire off alarm
     if(cmp == 0)
     {
-        start = false;
-        timer->Stop();
-        buttonStartStop->SetLabel("Start");
-        buttonStartStop->SetBackgroundColour(*startbutbgcolor);
+        // start = false;
+        // timer->Stop();
+        // buttonStartStop->SetLabel("Start");
+        // buttonStartStop->SetBackgroundColour(*startbutbgcolor);
 
         // Bind key press events to shut alarm up
         Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::OnAnyUserActivity, this);    
 
-        // get user-specified volume from config
+        // get user-specified alarm volume from config
         new_volume = config_data["volume"];
         // Get old volume to reset to pre-alarm setting after alarm stops
         old_volume = get_old_vol();
@@ -216,16 +216,22 @@ void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
         set_vol(new_volume);
         
         alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
+        sleep(2);   // in the case where user is active at the computer, allow alarm to
+                            // play for 2 seconds before monitoring for shut-off signal.
+
+        // BUG: in wxWidgets Focus is not being granted in some cases even thought HasFocus is
+        // reporting true. Why?
+        //
+        // within wxWidgets, Focus is needed in order to receive keypress events, which can be used
+        // to signal silencing of the alarm.
         
-        // BUG: Focus is not being granted in some cases even thought HasFocus is reporting true. Why?
-        // Focus is needed in order to receive keypress events, which are used to silence the alarm.
-        
-        // Becuase of this problem I've written my own function that queries that status
-        // of XScreenSaver and if it's timer has been reset since the last query then an event
-        // is posted which causes the alarm sound to stop playing. This way this app window does
+        // Becuase of this problem I've written my own function that queries the status
+        // of X11's XScreenSaver and if its timer has been reset since the last query then an event
+        // is posted which causes the alarm sound to stop playing. This way this app's window does
         // not need to be raised or focused. It can be "iconized" into the system tray or behind
-        // another window and it will still receive keypresses and mouse motions to trigger the
-        // shut off.
+        // another window and it will still receive notification of keypresses and mouse motions
+        // to trigger the shut off.
+
         MonitorIdle(); // new func to monitor keyboard and mouse for activity globally
     }
 }
@@ -246,7 +252,7 @@ void AlarmControlFrame::MonitorIdle() {
         if(ss_info->idle > prev_idle){
             prev_idle = ss_info->idle;
         } else {
-            // post event to trigger shutting the alarm off (OnAnyUserActivity())
+            // post event to trigger shutting the alarm off (with OnAnyUserActivity())
             wxCommandEvent e(wxEVT_CHAR_HOOK);
             wxPostEvent(this, e);
             printf("Posting event. idle time (ms): %zu\n", ss_info->idle);
