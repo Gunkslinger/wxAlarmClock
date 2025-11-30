@@ -21,7 +21,7 @@ int get_old_vol() {
     FILE* pipe = popen("pactl get-sink-volume @DEFAULT_SINK@", "r");
     if (!pipe)
     {
-        std:std::cerr << "Can't open pipe in pulse_audio.cpp:get_old_vol()" << std::endl;
+        std::cerr << "Can't open pipe in pulse_audio.cpp:get_old_vol()" << std::endl;
         return -1;
     }
     

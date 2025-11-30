@@ -3,9 +3,11 @@
 #include "wx/datetime.h"
 #include "wx/event.h"
 #include "wx/font.h"
+#include "wx/gdicmn.h"
 #include "wx/gtk/colour.h"
 #include "wx/stattext.h"
 #include "wx/sizer.h"
+#include "wx/stringimpl.h"
 #include "wx/tglbtn.h"
 
 #include "wx/event.h"
@@ -36,29 +38,25 @@ AlarmControlFrame::AlarmControlFrame()
     config_data = json::parse(f);
 
     // Get UI colors from the config file
-    std::string rgb;
-    rgb.append(config_data["bgcolor"]);
-    wxColour bgcolor(rgb);
-    rgb.clear();
-    rgb.append(config_data["fgcolor"]);
-    wxColour fgcolor(rgb);
-    rgb.clear();
-    rgb.append(config_data["butbgcolor"]);
-    wxColour butbgcolor(rgb);
-    rgb.clear();
-    rgb.append(config_data["butfgcolor"]);
-    wxColour butfgcolor(rgb);
-    rgb.clear();
-    rgb.append(config_data["startbutbgcolor"]);
-    startbutbgcolor = new wxColour(rgb);
-    rgb.clear();
-    rgb.append(config_data["stopbutbgcolor"]);
-    stopbutbgcolor = new wxColour(rgb);
+    wxColour bgcolor((std::string) config_data["bgcolor"]);
+    wxColour fgcolor((std::string) config_data["fgcolor"]);
+    wxColour butbgcolor((std::string) config_data["butbgcolor"]);
+    wxColour butfgcolor((std::string) config_data["butfgcolor"]);
+    startbutbgcolor = new wxColour((std::string) config_data["startbutbgcolor"]);
+    stopbutbgcolor = new wxColour((std::string)config_data["stopbutbgcolor"]);
     
     SetBackgroundColour(bgcolor);
     SetForegroundColour(fgcolor);
     wxFont fnt(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
             wxFONTWEIGHT_NORMAL, false);
+#ifdef MULTI_ALARMS
+    wxArrayString days = {"Mon","Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+    choiceDays = new wxChoice(this, ID_DAY_CHOICE);
+    for(int i = 0; i < 7; i++)
+        choiceDays->Append(days[i]);
+    choiceDays->SetBackgroundColour(bgcolor);
+    choiceDays->SetForegroundColour(fgcolor);
+#endif
     spinHour = new wxSpinCtrl(this, ID_SPIN_HOURS);
     spinHour->SetRange(1, 12);
     spinHour->SetBackgroundColour(bgcolor);
@@ -72,6 +70,10 @@ AlarmControlFrame::AlarmControlFrame()
     toggleButtonAMPM->SetBackgroundColour(butbgcolor);
     toggleButtonAMPM->SetForegroundColour(butfgcolor);
     spinSizer = new wxBoxSizer(wxHORIZONTAL);
+#ifdef MULTI_ALARMS
+    spinSizer->Add(choiceDays);
+#endif
+    spinSizer->AddSpacer(10);
     spinSizer->Add(spinHour);
     spinSizer->AddSpacer(10);
     spinSizer->Add(spinMinute);
@@ -85,14 +87,14 @@ AlarmControlFrame::AlarmControlFrame()
     labelAlarmTime->SetFont(fnt);
     labelAlarmTime->SetBackgroundColour(bgcolor);
     labelAlarmTime->SetForegroundColour(fgcolor);
-    mainsizer = new wxBoxSizer(wxVERTICAL);
-    mainsizer->AddSpacer(10);
-    mainsizer->Add(spinSizer, 0, 1);
-    mainsizer->AddSpacer(20);
-    mainsizer->Add(buttonStartStop, 0, wxALIGN_CENTER_HORIZONTAL, 1);
-    mainsizer->AddSpacer(20);
-    mainsizer->Add(labelAlarmTime, 1, wxALIGN_CENTER_HORIZONTAL, 1);
-    SetSizer(mainsizer);
+    mainSizer = new wxBoxSizer(wxVERTICAL);
+    mainSizer->AddSpacer(10);
+    mainSizer->Add(spinSizer, 0, wxALIGN_CENTER_HORIZONTAL);
+    mainSizer->AddSpacer(20);
+    mainSizer->Add(buttonStartStop, 0, wxALIGN_CENTER_HORIZONTAL, 1);
+    mainSizer->AddSpacer(20);
+    mainSizer->Add(labelAlarmTime, 1, wxALIGN_CENTER_HORIZONTAL, 1);
+    SetSizer(mainSizer);
     timer = new wxTimer(this);
 
     std::string s = std::getenv("HOME");
@@ -139,7 +141,7 @@ void AlarmControlFrame::OnStartStop(wxCommandEvent& event)
                 userInputTime.GetMinute(),
                 toggleButtonAMPM->GetValue() ? "am":"pm");
             labelAlarmTime->SetLabelText(txt);
-            mainsizer->Layout();
+            mainSizer->Layout();
             timer->Start(1000);
             this->SetTitle(txt);
             spinHour->Enable(false);
@@ -188,12 +190,13 @@ void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
     // Compare times as strings...
     int cmp = alarmTime.FormatISOTime().Cmp(currentTime.FormatISOTime());
     
-#ifdef DEBUG // in Makefile
-    printf("alarm time: %ls currenttime: %ls cmp: %d\n",
+//#ifdef DEBUG // in Makefile
+    printf("alarm day of week: %ls alarm time: %ls currenttime: %ls cmp: %d\n",
+        alarmTime.Format("%a").t_str(), // Abbrev. Day of Week
         alarmTime.FormatISOTime().t_str(),
         currentTime.FormatISOTime().t_str(),
         cmp);
-#endif
+//#endif
 
     // ...if equal, fire off alarm
     if(cmp == 0)

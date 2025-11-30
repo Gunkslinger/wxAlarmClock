@@ -3,13 +3,21 @@
 #include <wx/tglbtn.h>
 #include <wx/timer.h>
 #include <wx/event.h>
+#ifdef MULTI_ALARMS
+#include "wx/choice.h"
+#endif
+#include "wx/list.h"
 #include "wx/sound.h"
 #include "pulse_audio.hpp"
+
 
 class AlarmControlFrame : public wxFrame
 {
 public:
     AlarmControlFrame();
+#ifdef MULTI_ALARMS
+    wxChoice *choiceDays;
+#endif
     wxSpinCtrl *spinHour;
     wxSpinCtrl *spinMinute;
     wxToggleButton *toggleButtonAMPM;
@@ -18,7 +26,7 @@ public:
     wxColour *stopbutbgcolor;
     wxStaticText* labelAlarmTime;
     wxBoxSizer *spinSizer;
-    wxBoxSizer *mainsizer;
+    wxBoxSizer *mainSizer;
     wxTimer *timer;
     wxSound *alarm;
     int old_volume;
