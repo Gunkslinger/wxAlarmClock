@@ -4,7 +4,7 @@
 #include "wx/event.h"
 #include "wx/font.h"
 #include "wx/gdicmn.h"
-#include "wx/gtk/colour.h"
+#include "wx/menu.h"
 #include "wx/stattext.h"
 #include "wx/sizer.h"
 #include "wx/stringimpl.h"
@@ -49,13 +49,18 @@ AlarmControlFrame::AlarmControlFrame()
     SetForegroundColour(fgcolor);
     wxFont fnt(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
             wxFONTWEIGHT_NORMAL, false);
+#define MULTI_ALARMS
 #ifdef MULTI_ALARMS
-    wxArrayString days = {"Mon","Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
-    choiceDays = new wxChoice(this, ID_DAY_CHOICE);
-    for(int i = 0; i < 7; i++)
-        choiceDays->Append(days[i]);
-    choiceDays->SetBackgroundColour(bgcolor);
-    choiceDays->SetForegroundColour(fgcolor);
+    wxMenuBar *menubar = new wxMenuBar;
+    wxMenu *menuAlarms = new wxMenu;
+    menuAlarms->Append(ID_ALARMS, "Open", "Tooltip");
+    menubar->Append(menuAlarms, "Alarms");
+    SetMenuBar(menubar);
+    SetSize(420, 350);
+
+    Bind(wxEVT_MENU, &AlarmControlFrame::OnOpenDialog, this, ID_ALARMS);
+    alarms_dlg = new AlarmsDlg(this, fgcolor, bgcolor);
+    alarms_dlg->Show(false);
 #endif
     spinHour = new wxSpinCtrl(this, ID_SPIN_HOURS);
     spinHour->SetRange(1, 12);
@@ -70,9 +75,6 @@ AlarmControlFrame::AlarmControlFrame()
     toggleButtonAMPM->SetBackgroundColour(butbgcolor);
     toggleButtonAMPM->SetForegroundColour(butfgcolor);
     spinSizer = new wxBoxSizer(wxHORIZONTAL);
-#ifdef MULTI_ALARMS
-    spinSizer->Add(choiceDays);
-#endif
     spinSizer->AddSpacer(10);
     spinSizer->Add(spinHour);
     spinSizer->AddSpacer(10);
@@ -108,6 +110,10 @@ AlarmControlFrame::AlarmControlFrame()
 
 }
 
+void AlarmControlFrame::OnOpenDialog(wxCommandEvent &e)
+{
+    alarms_dlg->Show(true);
+}
 
 void AlarmControlFrame::OnToggle(wxCommandEvent& event)
 {

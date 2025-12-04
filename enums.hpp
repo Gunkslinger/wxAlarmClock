@@ -1,7 +1,12 @@
 enum
 {
+    //mainwin
     ID_STARTSTOP_BUTT,
     ID_SPIN_HOURS,
     ID_SPIN_MINUTES,
-    ID_DAY_CHOICE
+    //dialog
+    ID_DLG_NEWENTRY,
+    ID_DLG_CLOSE,
+    ID_DLG_TEMP,
+    ID_ALARMS
 };
