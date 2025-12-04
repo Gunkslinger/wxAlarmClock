@@ -169,32 +169,31 @@ std::vector<AlarmTime>& AlarmsDlg::getAlarms()
         dt.SetSecond(0);
         a.time = dt.FormatISOTime();
         at.push_back(a);
-        std::cout << i << ": "
-                << at[i].day
-                << " "
-                << at[i].time
-                << std::endl;
     }
     return at;
 }
 
 void AlarmsDlg::OnTemp(wxCommandEvent &e)
-{
-    //for(int i = 0; i < entryVec.size(); i++){
-        //if(!entryVec[i]->entry_checkBoxEnable->GetValue()) continue;
-    //     std::cout << i
-    //     << ": "
-    //     << (entryVec[i]->entry_checkBoxEnable->GetValue() ? "enabled ": "disabled ")
-    //     << entryVec[i]->entry_choiceDay->GetString(entryVec[i]->entry_choiceDay->GetSelection())
-    //     << " " << entryVec[i]->entry_spinHour->GetValue()
-    //     << ":" << entryVec[i]->entry_spinMinute->GetValue()
-    //     << (entryVec[i]->entry_choiceAMPM->GetSelection() ? "PM":"AM")
-    //     << " " << entryVec[i]->entry_textCtrlNote->GetValue()
-    //     << std::endl;
-    // }
-    // std::cout  << std::endl;
-        getAlarms();
+{   // this func is the current time day formatting and matching logic
+    // this should be the first filter before time of day matching
+    std::vector<AlarmTime>& at = getAlarms();
+    wxDateTime dt = wxDateTime::Now();
+
+    std::cout << dt.Format("%a") << std::endl;
+    for(int n = 0; n < 7; n++){
+        std::cout << n << ": "
+        << at[n].day
+        << " "
+        << at[n].time;
+
+        if(at[n].day == dt.Format("%a") || at[n].day == "ALL")
+            std::cout << " " << n << ": matches" << std::endl;
+        else
+            std::cout << " " << n << ": does not match" << std::endl;
+
+    }
 }
+
 
 void AlarmsDlg::OnClose(wxCommandEvent &e)
 {
