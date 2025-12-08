@@ -17,10 +17,10 @@ public:
     AlarmControlFrame();
 #ifdef MULTI_ALARMS
     wxChoice *choiceDays;
-#endif
     wxSpinCtrl *spinHour;
     wxSpinCtrl *spinMinute;
     wxToggleButton *toggleButtonAMPM;
+#endif
     wxButton *buttonStartStop;
     wxColour *startbutbgcolor;
     wxColour *stopbutbgcolor;

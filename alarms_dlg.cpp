@@ -160,14 +160,16 @@ std::vector<AlarmTime>& AlarmsDlg::getAlarms()
     static std::vector<AlarmTime> at;
     at.clear();
     AlarmTime a;
-    for(int i = 0; i < entryVec.size(); i++){
-        if(!entryVec[i]->entry_checkBoxEnable->GetValue()) continue;
-        a.day = entryVec[i]->entry_choiceDay->GetString(entryVec[i]->entry_choiceDay->GetSelection());
+
+    for (auto& entryPtr : entryVec) {
+        if(!entryPtr->entry_checkBoxEnable->GetValue()) continue;
+        a.day = entryPtr->entry_choiceDay->GetString(entryPtr->entry_choiceDay->GetSelection());
         wxDateTime dt = wxDateTime::Now();
-        dt.SetHour(entryVec[i]->entry_spinHour->GetValue() + (entryVec[i]->entry_choiceAMPM->GetSelection() ? 12:0));
-        dt.SetMinute(entryVec[i]->entry_spinMinute->GetValue());
+        dt.SetHour(entryPtr->entry_spinHour->GetValue() + (entryPtr->entry_choiceAMPM->GetSelection() ? 12:0));
+        dt.SetMinute(entryPtr->entry_spinMinute->GetValue());
         dt.SetSecond(0);
         a.time = dt.FormatISOTime();
+        a.note = entryPtr->entry_textCtrlNote->GetValue().ToStdString();
         at.push_back(a);
     }
     return at;

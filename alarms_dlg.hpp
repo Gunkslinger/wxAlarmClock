@@ -53,9 +53,11 @@
 
 
 class Entry;
+
 struct AlarmTime {
     std::string day;
     std::string time;
+    std::string note;
 };
 
 class AlarmsDlg : public wxDialog

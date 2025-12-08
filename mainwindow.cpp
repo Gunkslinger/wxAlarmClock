@@ -7,6 +7,7 @@
 #include "wx/menu.h"
 #include "wx/stattext.h"
 #include "wx/sizer.h"
+#include "wx/string.h"
 #include "wx/stringimpl.h"
 #include "wx/tglbtn.h"
 
@@ -47,7 +48,9 @@ AlarmControlFrame::AlarmControlFrame()
     
     SetBackgroundColour(bgcolor);
     SetForegroundColour(fgcolor);
-    wxFont fnt(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
+    wxFont butfnt(30, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
+            wxFONTWEIGHT_NORMAL, false);
+    wxFont labfnt(20, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
             wxFONTWEIGHT_NORMAL, false);
 #define MULTI_ALARMS
 #ifdef MULTI_ALARMS
@@ -61,7 +64,7 @@ AlarmControlFrame::AlarmControlFrame()
     Bind(wxEVT_MENU, &AlarmControlFrame::OnOpenDialog, this, ID_ALARMS);
     alarms_dlg = new AlarmsDlg(this, fgcolor, bgcolor);
     alarms_dlg->Show(false);
-#endif
+#else
     spinHour = new wxSpinCtrl(this, ID_SPIN_HOURS);
     spinHour->SetRange(1, 12);
     spinHour->SetBackgroundColour(bgcolor);
@@ -81,17 +84,20 @@ AlarmControlFrame::AlarmControlFrame()
     spinSizer->Add(spinMinute);
     spinSizer->AddSpacer(10);
     spinSizer->Add(toggleButtonAMPM);
+#endif
     buttonStartStop = new wxButton(this, ID_STARTSTOP_BUTT, wxString("Start"));
-    buttonStartStop->SetFont(fnt);
+    buttonStartStop->SetFont(butfnt);
     buttonStartStop->SetForegroundColour(butfgcolor);
     buttonStartStop->SetBackgroundColour(*startbutbgcolor);
     labelAlarmTime = new wxStaticText(this, wxID_ANY, "00:00");
-    labelAlarmTime->SetFont(fnt);
+    labelAlarmTime->SetFont(labfnt);
     labelAlarmTime->SetBackgroundColour(bgcolor);
     labelAlarmTime->SetForegroundColour(fgcolor);
     mainSizer = new wxBoxSizer(wxVERTICAL);
+#ifndef MULTI_ALARMS
     mainSizer->AddSpacer(10);
     mainSizer->Add(spinSizer, 0, wxALIGN_CENTER_HORIZONTAL);
+#endif
     mainSizer->AddSpacer(20);
     mainSizer->Add(buttonStartStop, 0, wxALIGN_CENTER_HORIZONTAL, 1);
     mainSizer->AddSpacer(20);
@@ -106,8 +112,9 @@ AlarmControlFrame::AlarmControlFrame()
 
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmControlFrame::OnStartStop, this, wxID_ANY);
     Bind(wxEVT_TIMER, &AlarmControlFrame::OnCountDown, this);
+#ifndef MULTI_ALARMS
     Bind(wxEVT_TOGGLEBUTTON, &AlarmControlFrame::OnToggle, this, wxID_ANY);
-
+#endif
 }
 
 void AlarmControlFrame::OnOpenDialog(wxCommandEvent &e)
@@ -115,21 +122,26 @@ void AlarmControlFrame::OnOpenDialog(wxCommandEvent &e)
     alarms_dlg->Show(true);
 }
 
+#ifndef MULTI_ALARMS
 void AlarmControlFrame::OnToggle(wxCommandEvent& event)
 {
     toggleButtonAMPM->SetLabel(toggleButtonAMPM->GetValue() ? "AM":"PM");
 }
+#endif
 
 // Start/Stop button event
 bool start = false;
+#ifndef MULTI_ALARMS
 wxDateTime userInputTime;
+#endif
 
 void AlarmControlFrame::OnStartStop(wxCommandEvent& event)
 {
     start = !start;
+#ifndef MULTI_ALARMS
+    // if starting, get vals in spinners
     if(start)
     {
-        // if starting, get vals in spinners
         userInputTime = wxDateTime::Now();
         userInputTime.SetHour(spinHour->GetValue());
         userInputTime.SetMinute(spinMinute->GetValue());
@@ -148,11 +160,11 @@ void AlarmControlFrame::OnStartStop(wxCommandEvent& event)
                 toggleButtonAMPM->GetValue() ? "am":"pm");
             labelAlarmTime->SetLabelText(txt);
             mainSizer->Layout();
-            timer->Start(1000);
             this->SetTitle(txt);
             spinHour->Enable(false);
             spinMinute->Enable(false);
             toggleButtonAMPM->Enable(false);
+            timer->Start(1000);
         }
     } else {
         // if stopping (aborting) shut down timer
@@ -164,8 +176,79 @@ void AlarmControlFrame::OnStartStop(wxCommandEvent& event)
         buttonStartStop->SetBackgroundColour(*startbutbgcolor);
         this->SetTitle("wxAlarmClock");
     }
+#else
+    if(start){
+        timer->Start(1000);
+        buttonStartStop->SetLabelText("Stop");
+        buttonStartStop->SetBackgroundColour(*stopbutbgcolor);
+    } else {
+        timer->Stop();
+        buttonStartStop->SetLabel("Start");
+        buttonStartStop->SetBackgroundColour(*startbutbgcolor);
+    }
+#endif
 }
 
+#ifdef MULTI_ALARMS
+void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
+{
+    char propellor[4] = {'\\', '|', '/', '-'};
+    static int rotate = 0;
+    wxDateTime currentTime = wxDateTime::Now();
+    wxString txt;
+
+    // Make Animated Title
+    if(rotate > 3)
+        rotate = 0;
+    txt.Printf("Alarm Clock %c", propellor[rotate++]);
+    this->SetTitle(txt);
+    
+    // keep alarm clock label current
+    wxString labday = currentTime.Format("%a");
+    int labhour = currentTime.GetHour();
+    labhour = labhour > 12 ? labhour - 12: labhour;
+    wxString labtxt;
+    labtxt.Printf("%s %d:%02d:%02d %s",
+                labday,
+                labhour,
+                currentTime.GetMinute(),
+                currentTime.GetSecond(),
+                currentTime.GetHour() > 12 ? "pm":"am");
+    labelAlarmTime->SetLabelText(labtxt);
+    mainSizer->Layout();
+
+    // get current time formatted into an AlarmTime structure for comparison
+    AlarmTime ct{
+        .day = currentTime.Format("%a").ToStdString(), // extract day of week
+        .time = currentTime.FormatISOTime().ToStdString(), // extract ISO time
+    };
+    int n = 0;
+    std::vector<AlarmTime> at = alarms_dlg->getAlarms(); // get alarms
+    for(std::vector<AlarmTime>::iterator atit = at.begin() ; atit != at.end(); ++atit){
+        std::cout << n++ << " " << atit->day << " " << atit->time << " " << atit->note << std::endl;
+        if(atit->day == ct.day || atit->day == "ALL"){ // if day and
+            if(atit->time == ct.time){ // time matches then set up to play alarm
+                // Bind key press and mouse events to shut alarm up
+                Bind(wxEVT_CHAR_HOOK, &AlarmControlFrame::OnAnyUserActivity, this);    
+                // get user-specified alarm volume from config
+                new_volume = config_data["volume"];
+                // Get old volume to reset to pre-alarm setting after alarm stops
+                old_volume = get_old_vol();
+                // if old volume couldn't be gotten (hasn't happened yet)
+                // just set old volume to new volume and walk away
+                if(old_volume < 0) old_volume = new_volume;
+                set_vol(new_volume);
+                alarm->Play(wxSOUND_ASYNC|wxSOUND_LOOP);
+                sleep(2);   // in the case where user is active at the computer, allow alarm to
+                                    // play for 2 seconds before monitoring for shut-off signal.
+                MonitorIdle(); // monitor keyboard and mouse for activity globally
+
+            }
+        }
+    }
+    std::cout  << std::endl;
+}
+#else
 // Timer event handler to count down until alarm should play
 void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
 {
@@ -244,6 +327,7 @@ void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
         MonitorIdle(); // new func to monitor keyboard and mouse for activity globally
     }
 }
+#endif
 
 // Monitor for keyboard or mouse activity and post an event if detected
 // This indicates that the user wants the alarm to stop regardless of the
@@ -282,9 +366,11 @@ void AlarmControlFrame::OnAnyUserActivity(wxKeyEvent &event)
     alarm->Stop();
     sleep(1); // hack: give play buffer a chance to drain before changing volume
     set_vol(old_volume); // restore old volume
+#ifndef MULTI_ALARMS
     spinHour->Enable(true);
     spinMinute->Enable(true);
     toggleButtonAMPM->Enable(true);
+#endif
     printf("SHUT UP!!\n");
 }
             
