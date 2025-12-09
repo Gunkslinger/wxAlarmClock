@@ -70,11 +70,12 @@ public:
     wxBoxSizer *dlg_sizerButtons; // sizer container for dialog control buttons
     wxBoxSizer *dlg_mainSizer;    // master sizer for the dialog
     wxButton *dlg_close;
-    wxButton *dlg_temp;
+    wxButton *dlg_save;
     std::vector<Entry *> entryVec;
     std::vector<AlarmTime>& getAlarms();
     void OnClose(wxCommandEvent &);
     void OnSave(wxCommandEvent &);
+    void OnDirty(wxCommandEvent &);
 };
 
 class Entry : public wxEvtHandler

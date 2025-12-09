@@ -106,8 +106,8 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
     this->SetSize(800, 450);
     
     dlg_close = new wxButton(this, ID_DLG_CLOSE, "Close");
-    dlg_temp = new wxButton(this, ID_DLG_SAVE, "Save");
-    
+    dlg_save = new wxButton(this, ID_DLG_SAVE, "Save");
+    dlg_save->Enable(false);
     
     dlg_entriesSizer = new wxBoxSizer(wxVERTICAL);
     dlg_entriesSizer->AddSpacer(20);
@@ -130,7 +130,7 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
         ent->entry_spinHour->SetValue(alarm_data["hour"]);
         ent->entry_spinMinute->SetValue(alarm_data["minute"]);
         ent->entry_choiceAMPM->SetSelection(alarm_data["ampm"]);
-        ent->entry_textCtrlNote->SetValue((std::string) alarm_data["note"]);
+        ent->entry_textCtrlNote->ChangeValue((std::string) alarm_data["note"]);
         //std::cout << alarm_data << std::endl;
 
         ent->set_colors(fgcol, bgcol);
@@ -146,7 +146,7 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
     dlg_mainSizer->AddStretchSpacer(1);
 
     dlg_sizerButtons = new wxBoxSizer(wxHORIZONTAL);
-    dlg_sizerButtons->Add(dlg_temp);
+    dlg_sizerButtons->Add(dlg_save);
     dlg_sizerButtons->AddSpacer(10);
     dlg_sizerButtons->Add(dlg_close);
 
@@ -159,6 +159,10 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
     
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmsDlg::OnClose, this, ID_DLG_CLOSE);
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmsDlg::OnSave, this, ID_DLG_SAVE);
+    Bind(wxEVT_CHECKBOX, &AlarmsDlg::OnDirty, this, wxID_ANY);
+    Bind(wxEVT_CHOICE, &AlarmsDlg::OnDirty, this, wxID_ANY);
+    Bind(wxEVT_SPINCTRL, &AlarmsDlg::OnDirty, this, wxID_ANY);
+    Bind(wxEVT_TEXT, &AlarmsDlg::OnDirty, this, wxID_ANY);
 }
 
 std::vector<AlarmTime>& AlarmsDlg::getAlarms()
@@ -179,6 +183,11 @@ std::vector<AlarmTime>& AlarmsDlg::getAlarms()
         at.push_back(a);
     }
     return at;
+}
+
+void AlarmsDlg::OnDirty(wxCommandEvent &e)
+{
+    dlg_save->Enable(true);
 }
 
 void AlarmsDlg::OnSave(wxCommandEvent &e)
