@@ -23,6 +23,7 @@
 #include "wx/event.h"
 #include "wx/gdicmn.h"
 #include "wx/checkbox.h"
+#include "wx/gtk/colour.h"
 #include "wx/spinctrl.h"
 #include "wx/sizer.h"
 #include "wx/stringimpl.h"
@@ -102,13 +103,15 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
     
     fgcol = fg;
     bgcol = bg;
-    
+
     this->SetSize(800, 450);
     
     dlg_close = new wxButton(this, ID_DLG_CLOSE, "Close");
     dlg_save = new wxButton(this, ID_DLG_SAVE, "Save");
     dlg_save->Enable(false);
-    
+    dlg_save->SetBackgroundColour(disbg);
+    dlg_save->SetForegroundColour(disfg);
+
     dlg_entriesSizer = new wxBoxSizer(wxVERTICAL);
     dlg_entriesSizer->AddSpacer(20);
 
@@ -156,6 +159,8 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
     SetBackgroundColour(bgcol);
     dlg_close->SetForegroundColour(fgcol);
     dlg_close->SetBackgroundColour(bgcol);
+    // dlg_save->SetForegroundColour(fgcol);
+    // dlg_save->SetBackgroundColour(bgcol);
     
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmsDlg::OnClose, this, ID_DLG_CLOSE);
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmsDlg::OnSave, this, ID_DLG_SAVE);
@@ -163,6 +168,7 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
     Bind(wxEVT_CHOICE, &AlarmsDlg::OnDirty, this, wxID_ANY);
     Bind(wxEVT_SPINCTRL, &AlarmsDlg::OnDirty, this, wxID_ANY);
     Bind(wxEVT_TEXT, &AlarmsDlg::OnDirty, this, wxID_ANY);
+
 }
 
 std::vector<AlarmTime>& AlarmsDlg::getAlarms()
@@ -188,10 +194,17 @@ std::vector<AlarmTime>& AlarmsDlg::getAlarms()
 void AlarmsDlg::OnDirty(wxCommandEvent &e)
 {
     dlg_save->Enable(true);
+    dlg_save->SetBackgroundColour(bgcol);
+    dlg_save->SetForegroundColour(fgcol);
 }
 
 void AlarmsDlg::OnSave(wxCommandEvent &e)
 {
+    // wxColour oldbg = dlg_save->GetBackgroundColour();
+    // wxColour oldfg = dlg_save->GetForegroundColour();
+    // dlg_save->SetBackgroundColour(0x00ff00);
+    // usleep(500000);
+
     json jentry;
     std::string alrm = std::getenv("HOME");
     alrm.append("/.config/wxAlarmClock/Alarms.json");
@@ -207,6 +220,9 @@ void AlarmsDlg::OnSave(wxCommandEvent &e)
             };
         f << jentry.dump(-1) << std::endl;
     }
+    dlg_save->Enable(false);
+    dlg_save->SetBackgroundColour(disbg);
+    dlg_save->SetForegroundColour(disfg);
 }
 
 

@@ -64,8 +64,10 @@ class AlarmsDlg : public wxDialog
 {
 public:
     AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg);
-    wxColor fgcol;
-    wxColor bgcol;  // from config via AlarmControlFrame
+    wxColor fgcol; // enabled state for save button
+    wxColor bgcol;
+    wxColor disbg = 0x373737; // disabled state for save button
+    wxColor disfg = 0x4B4B4B;
     wxBoxSizer *dlg_entriesSizer; // display area in the dialog of list of entries
     wxBoxSizer *dlg_sizerButtons; // sizer container for dialog control buttons
     wxBoxSizer *dlg_mainSizer;    // master sizer for the dialog

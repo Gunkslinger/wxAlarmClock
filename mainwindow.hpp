@@ -25,6 +25,7 @@ public:
     wxColour *startbutbgcolor;
     wxColour *stopbutbgcolor;
     wxStaticText* labelAlarmTime;
+    wxStaticText* labelAlarmName;
     wxBoxSizer *spinSizer;
     wxBoxSizer *mainSizer;
     wxTimer *timer;
