@@ -7,6 +7,6 @@ enum
     //dialog
     ID_DLG_NEWENTRY,
     ID_DLG_CLOSE,
-    ID_DLG_TEMP,
+    ID_DLG_SAVE,
     ID_ALARMS
 };

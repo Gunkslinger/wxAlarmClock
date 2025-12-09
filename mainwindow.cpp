@@ -37,7 +37,8 @@ AlarmControlFrame::AlarmControlFrame()
     cfg.append("/.config/wxAlarmClock/wxAlarmClock.json");
     std::ifstream f(cfg);
     config_data = json::parse(f);
-
+    f.close();
+    
     // Get UI colors from the config file
     wxColour bgcolor((std::string) config_data["bgcolor"]);
     wxColour fgcolor((std::string) config_data["fgcolor"]);

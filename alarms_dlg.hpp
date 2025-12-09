@@ -72,16 +72,15 @@ public:
     wxButton *dlg_close;
     wxButton *dlg_temp;
     std::vector<Entry *> entryVec;
-    int idx;
     std::vector<AlarmTime>& getAlarms();
     void OnClose(wxCommandEvent &);
-    void OnTemp(wxCommandEvent &);
+    void OnSave(wxCommandEvent &);
 };
 
 class Entry : public wxEvtHandler
 {
 public:
-    Entry(wxDialog *parent,  int n);
+    Entry(wxDialog *parent);
 
     wxCheckBox *entry_checkBoxEnable;
     wxChoice *entry_choiceDay;
