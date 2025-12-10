@@ -2,7 +2,6 @@ Alarm clock app using wxWidgets that has 7 user definable alarms.
 There is not installation script yet, but just
 mkdir ~/.config/wxAlarcmClock and copy wxAlarmClock.json and Alarms.json into it.
 
-All code written by me in this repo is in the public domain.
 
 The wxAlarmClock.json file is still very primitive. The only counter-intuitive item is "volume"
 This controls the volume of the alarm when it plays. It is a percentage of the maximum volume
