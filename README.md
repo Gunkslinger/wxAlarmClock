@@ -11,3 +11,7 @@ A neat feature of this program is that it polls XScreenSaverQueryInfo and compar
 of the XScreenSaverInfo struct to the previously queried value to test if the user pressed any key
 or moved their mouse while the alarm is playing, and if so playing is aborted. This lets the user
 shut the alarm off even if the monitor is turned off, since the focus of the app is not relevent. 
+
+This program uses the Pulse Audio server. If you are using a different system then you'll need
+to rewrite pulse_audio.cpp to work with your system. The two functions, get_volume() and set_volume()
+just construct system commands to perform their tasks, so it shouldn't be too difficult.
