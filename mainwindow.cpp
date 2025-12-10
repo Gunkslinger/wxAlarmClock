@@ -119,16 +119,18 @@ void AlarmControlFrame::OnStartStop(wxCommandEvent& event)
 
 void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
 {
-    char propellor[4] = {'\\', '|', '/', '-'};
+    int propellor[] =  {0x2190, 0x2196, 0x2191, 0x2197,
+                        0x2192, 0x2198, 0x2193, 0x2199};
     static int rotate = 0;
     wxDateTime currentTime = wxDateTime::Now();
     wxString txt;
 
     // Make Animated Title
-    if(rotate > 3)
+    if(rotate > 6)
         rotate = 0;
-    txt.Printf("Alarm Clock %c", propellor[rotate++]);
+    txt.Printf("%c Alarm Clock %c", propellor[rotate], propellor[rotate]);
     this->SetTitle(txt);
+    rotate++;
     
     // keep alarm clock label current
     wxString labday = currentTime.Format("%a");
@@ -152,8 +154,9 @@ void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
     int n = 0;
     std::vector<AlarmTime> at = alarms_dlg->getAlarms(); // get alarms
     for(std::vector<AlarmTime>::iterator atit = at.begin() ; atit != at.end(); ++atit){
-        //std::cout << n++ << " " << atit->day << " " << atit->time << " " << atit->note << std::endl;
         if(atit->day == ct.day || atit->day == "ALL"){ // if day and
+            std::cout << n++ << " " << atit->day << " " << atit->time << " " << atit->note;
+            std::cout << " " << ct.day << " " << ct.time << std::endl;
             if(atit->time == ct.time){ // time matches then set up to play alarm
                 labelAlarmName->SetLabelText(atit->note);
                 this->Layout();
