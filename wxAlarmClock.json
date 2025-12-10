@@ -1,0 +1,10 @@
+{
+  "bgcolor": "#373737",
+  "fgcolor": "#DCDCC8",
+  "butbgcolor": "#4B4B4B",
+  "butfgcolor": "#DCDCC8",
+  "stopbutbgcolor": "#5B2020",
+  "startbutbgcolor": "#205B20",
+  "sound": ".config/wxAlarmClock/cuckoo2.wav",
+  "volume": 40
+}
