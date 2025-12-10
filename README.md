@@ -13,5 +13,5 @@ to test if the user pressed any key or moved their mouse, and if so playing is a
 user shut the alarm off even if the monitor is turned off, since the focus of the app is not relevent. 
 
 This program uses the Pulse Audio server. If you are using a different system then you'll need
-to rewrite pulse_audio.cpp to work with your system. The two functions, get_old_vol() and set_volume()
+to rewrite pulse_audio.cpp to work with your system. The two functions, get_old_vol() and set_vol()
 just construct system commands to perform their tasks, so it shouldn't be too difficult.
