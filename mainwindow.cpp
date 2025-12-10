@@ -126,7 +126,7 @@ void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
     wxString txt;
 
     // Make Animated Title
-    if(rotate > 6)
+    if(rotate > 7)
         rotate = 0;
     txt.Printf("%c Alarm Clock %c", propellor[rotate], propellor[rotate]);
     this->SetTitle(txt);
