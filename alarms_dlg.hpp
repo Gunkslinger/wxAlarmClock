@@ -53,12 +53,21 @@
 
 
 class Entry;
-
+#define DAYANDTIME_VERSION
+#ifndef DAYANDTIME_VERSION
 struct AlarmTime {
     std::string day;
     std::string time;
     std::string note;
 };
+#else
+struct AlarmTime {
+std::string dayAndTime;
+std::string note;
+};
+
+int parseTime(const std::string&);
+#endif
 
 class AlarmsDlg : public wxDialog
 {
@@ -75,6 +84,7 @@ public:
     wxButton *dlg_save;
     std::vector<Entry *> entryVec;
     std::vector<AlarmTime>& getAlarms();
+    //bool compareSchedules(const AlarmTime&, const AlarmTime&);
     void OnClose(wxCommandEvent &);
     void OnSave(wxCommandEvent &);
     void OnDirty(wxCommandEvent &);

@@ -10,10 +10,10 @@ OBJS = main.o mainwindow.o pulse_audio.o alarms_dlg.o
 
 all: wxAlarmClock
 
-main.o: main.cpp mainwindow.hpp
+main.o: main.cpp mainwindow.hpp alarms_dlg.hpp pulse_audio.hpp
 		${C} ${DEBUG_SYMBOLS} ${CFLAGS} -c main.cpp -o main.o
 
-mainwindow.o: mainwindow.cpp mainwindow.hpp enums.hpp pulse_audio.cpp pulse_audio.hpp
+mainwindow.o: mainwindow.cpp mainwindow.hpp enums.hpp alarms_dlg.hpp pulse_audio.hpp
 		${C} ${DEBUG_SYMBOLS} ${CFLAGS} -c mainwindow.cpp -o mainwindow.o
 
 pulse_audio.o: pulse_audio.cpp pulse_audio.hpp

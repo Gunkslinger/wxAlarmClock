@@ -171,6 +171,65 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
 
 }
 
+#ifndef DAYANDTIME_VERSION
+// Create a map to map weekdays to their order (Mon = 1, Tue = 2, ..., Sun = 7)
+std::map<std::string, int> weekdayOrder = {
+    {"Mon", 1}, {"Tue", 2}, {"Wed", 3}, {"Thu", 4},
+    {"Fri", 5}, {"Sat", 6}, {"Sun", 7}
+};
+
+// Custom comparison function
+bool compareSchedules(const AlarmTime& a, const AlarmTime& b) {
+    // If day is "ALL", consider it as having the lowest order (before all other days)
+    int orderA = (a.day == "ALL") ? -1 : weekdayOrder[a.day];
+    int orderB = (b.day == "ALL") ? -1 : weekdayOrder[b.day];
+
+    if (orderA != orderB) {
+        return orderA < orderB;
+    }
+
+    // If days are the same, compare times
+    int hoursA, minutesA, hoursB, minutesB;
+    sscanf(a.time.c_str(), "%d:%d", &hoursA, &minutesA);
+    sscanf(b.time.c_str(), "%d:%d", &hoursB, &minutesB);
+
+    if (hoursA != hoursB) {
+        return hoursA < hoursB;
+    }
+    return minutesA < minutesB;
+}
+#else
+
+// Function to parse time from a string in "DDD HH:MM" format and return it as minutes since the start of the week
+int parseTime(const std::string& dayAndTime) {
+    int hours, minutes;
+    char day[4];
+    sscanf(dayAndTime.c_str(), "%3s %d:%d", day, &hours, &minutes);
+
+    // Map day abbreviations to their corresponding weekday numbers (0 = Sunday, 1 = Monday, etc.)
+    std::map<std::string, int> dayOfWeekMap = {
+        {"Mon", 1}, {"Tue", 2}, {"Wed", 3}, {"Thu", 4},
+        {"Fri", 5}, {"Sat", 6}, {"Sun", 7}, {"ALL", 8}
+    };
+    // Calculate total minutes since the start of the week
+    int totalMinutes = (dayOfWeekMap[day] * 24 * 60) + (hours * 60) + minutes;
+    return totalMinutes;
+}
+
+// Comparison function for sorting events by time
+bool compareSchedules(const AlarmTime& a, const AlarmTime& b) {
+    int timeA = parseTime(a.dayAndTime);
+    int timeB = parseTime(b.dayAndTime);
+
+    // If "ALL" is specified as the day, consider it to be earlier than any specific day
+    if (a.dayAndTime.find("ALL") != std::string::npos) return false;
+    if (b.dayAndTime.find("ALL") != std::string::npos) return true;
+
+    return timeA < timeB;
+}
+
+#endif
+
 std::vector<AlarmTime>& AlarmsDlg::getAlarms()
 {
     static std::vector<AlarmTime> at;
@@ -178,16 +237,25 @@ std::vector<AlarmTime>& AlarmsDlg::getAlarms()
     AlarmTime a;
 
     for (auto& entryPtr : entryVec) {
-        if(!entryPtr->entry_checkBoxEnable->GetValue()) continue;
-        a.day = entryPtr->entry_choiceDay->GetString(entryPtr->entry_choiceDay->GetSelection());
+        if(!entryPtr->entry_checkBoxEnable->GetValue())
+            continue; // skip if disabled
         wxDateTime dt = wxDateTime::Now();
         dt.SetHour(entryPtr->entry_spinHour->GetValue() + (entryPtr->entry_choiceAMPM->GetSelection() ? 12:0));
         dt.SetMinute(entryPtr->entry_spinMinute->GetValue());
         dt.SetSecond(0);
+#ifdef DAYANDTIME_VERSION
+        a.dayAndTime = entryPtr->entry_choiceDay->GetString(entryPtr->entry_choiceDay->GetSelection());
+        a.dayAndTime.append(dt.Format(" %H:%M"));
+#else
+        a.day = entryPtr->entry_choiceDay->GetString(entryPtr->entry_choiceDay->GetSelection());
         a.time = dt.FormatISOTime();
+#endif
         a.note = entryPtr->entry_textCtrlNote->GetValue().ToStdString();
         at.push_back(a);
     }
+    
+    std::sort(at.begin(), at.end(), compareSchedules);
+
     return at;
 }
 
@@ -200,11 +268,6 @@ void AlarmsDlg::OnDirty(wxCommandEvent &e)
 
 void AlarmsDlg::OnSave(wxCommandEvent &e)
 {
-    // wxColour oldbg = dlg_save->GetBackgroundColour();
-    // wxColour oldfg = dlg_save->GetForegroundColour();
-    // dlg_save->SetBackgroundColour(0x00ff00);
-    // usleep(500000);
-
     json jentry;
     std::string alrm = std::getenv("HOME");
     alrm.append("/.config/wxAlarmClock/Alarms.json");
