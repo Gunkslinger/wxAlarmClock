@@ -119,7 +119,6 @@ void AlarmControlFrame::OnStartStop(wxCommandEvent& event)
 
 void AlarmControlFrame::startPlaying()
 {
-    //labelAlarmName->SetLabelText(at.note); // TODO: this needs to get updated with upcoming alarm before it plays
     labelAlarmName->SetForegroundColour(*fgcolor); // only enable/active color should be set here
     this->Layout();
 
@@ -158,14 +157,13 @@ void AlarmControlFrame::MonitorIdle() {
             // post event to trigger shutting the alarm off (with OnAnyUserActivity())
             wxCommandEvent e(wxEVT_CHAR_HOOK);
             wxPostEvent(this, e);
-            printf("Posting event. idle time (ms): %zu\n", ss_info->idle);
+            std::cout << "MonitorIdle(): posting event. idle time (ms): " << ss_info->idle << std::endl;
             XFree(ss_info);
             return;
         }
     }
 }
 
-#ifdef DAYANDTIME_VERSION
 extern int parseTime(std::string&);
 
 bool compareTimes(const AlarmTime& a, const AlarmTime& b)
@@ -174,56 +172,73 @@ bool compareTimes(const AlarmTime& a, const AlarmTime& b)
 }
 
 // Find the next alarm in the sorted vector 'alarmsVec'
-AlarmTime findNextAlarm(const std::vector<AlarmTime>& alarmsVec, const AlarmTime& currentTimeEvent) {
+AlarmTime findNextAlarm(const std::vector<AlarmTime>& sortedAlarmsVector, const AlarmTime& currentTimeEvent) {
     int currentMinutes = parseTime(currentTimeEvent.dayAndTime);
     int alarmMinutes;
+    struct candidate {
+        int diff;
+        AlarmTime alarm;
+    };
 
-    // handle ALL
-    for (const auto& alarm : alarmsVec) {
-        if (alarm.dayAndTime.find("ALL") != std::string::npos || 
-            alarm.dayAndTime.substr(0, 3) == currentTimeEvent.dayAndTime.substr(0, 3)) {
+    std::vector<candidate> candidates;
+
+    // handle ALL or same day
+    // add candidates to list
+    for (const auto& alarm : sortedAlarmsVector) { 
+        if (alarm.dayAndTime.find("ALL") != std::string::npos || // day is ALL or
+            alarm.dayAndTime.substr(0, 3) == currentTimeEvent.dayAndTime.substr(0, 3)) { // day is today
             alarmMinutes = parseTime(alarm.dayAndTime);
-            if (alarmMinutes > currentMinutes) {
-                std::cout   << "findNextAlarm: found alarm when handling 'ALL' "
-                            << "cur minutes: " << currentMinutes << " alarmMinutes: " << alarmMinutes
-                            << std::endl;
-                return alarm;
+            if (alarmMinutes > currentMinutes) { // is alarm time later than current time (in minutes)?
+                // add current alarm to a list of the candidate alarms found here.
+                candidates.push_back(candidate {alarmMinutes - currentMinutes, alarm});
             }
         }
     }
-    std::cout   << "findNextAlarm: couldn't find alarm when handling 'ALL'. "
-                << "cur minutes: " << currentMinutes << " alarmMinutes: " << alarmMinutes
-                << std::endl;
-
-    // If no next alarm is found on the same day or with "ALL" specified as the day,
-    // return the first alarm of the next day
-    for (const auto& alarm : alarmsVec) {
+    
+    // fill candidates list with next days candidates
+    for (const auto& alarm : sortedAlarmsVector) {
         alarmMinutes = parseTime(alarm.dayAndTime);
         if (alarmMinutes > currentMinutes) {
             std::cout   << "findNextAlarm: found alarm on next day. "
                         << "cur minutes: " << currentMinutes << " alarmMinutes: " << alarmMinutes
                         << std::endl;
-            return alarm;
+            candidates.push_back(candidate {alarmMinutes - currentMinutes, alarm});
         }
     }
-    std::cout   << "findNextAlarm: couldn't find alarm when handling next day "
+    
+    // search through all collected candates looking for the one closest to the current time and return it.
+    if(!candidates.empty())
+    {
+        int mindiff = 10081;
+        AlarmTime a;
+        for(auto& cand: candidates)
+        {
+            if(cand.diff < mindiff)
+            {
+                mindiff = cand.diff;
+                a = cand.alarm;
+            }
+        }
+        std::cout << "Returning " << a.dayAndTime << " from findNextAlarm "
+        << candidates.size() << " candidates. time difference: " << mindiff << std::endl;
+        return a;
+    }
+    
+    std::cout   << "findNextAlarm: couldn't find alarm when handling ALL or next day! Bailing out! "
                 << "cur minutes: " << currentMinutes << " alarmMinutes: " << alarmMinutes
                 << std::endl;
-
     // If all events are earlier than or at the same time as the current event,
-    // return an empty event (description will be empty)
-
-    // THIS IS REACHED WHEN IT SHOULDN'T, LIKE WHEN "ALL" IS FOUND.
+    // return an empty alarm (description will be empty)
     AlarmTime emptyAlarm;
-    emptyAlarm.note = ""; std::cout << "findNextAlarm: no alarm found. returning EMPTY alarm" << std::endl;// return alarmsVec[1];
+    emptyAlarm.note = "";
+    std::cout << "findNextAlarm: no alarm found. returning EMPTY alarm" << std::endl;
     return emptyAlarm;
 }
 
-#endif
-
 int propellor[] =  {0x2190, 0x2196, 0x2191, 0x2197,
     0x2192, 0x2198, 0x2193, 0x2199};
-
+    
+// Window title and ToD label
 void AlarmControlFrame::UpdateLabels(wxDateTime& currentTime)
 {
     static int rotate = 0;
@@ -251,7 +266,7 @@ void AlarmControlFrame::UpdateLabels(wxDateTime& currentTime)
                 
 }
             
-// When running this function gets called every second. It animates the propeller and
+// When running, this function gets called every second. It animates the propeller and
 // upadates the TOD label via UpdateLabels().
 // It then compares the current time to the alarms and if equal to one of them calls
 // the play function with that alarm as a parameter.
@@ -262,8 +277,7 @@ void AlarmControlFrame::OnCountDown(wxTimerEvent& event)
 
     UpdateLabels(currentTime);
     
-#ifdef DAYANDTIME_VERSION
-static AlarmTime old_nextalarm;
+    static AlarmTime old_nextalarm;
 
     // get current time formatted into an AlarmTime structure for comparison
     AlarmTime ct{
@@ -281,11 +295,9 @@ static AlarmTime old_nextalarm;
     auto nextAlarm = findNextAlarm(at, ct);
     if (!nextAlarm.dayAndTime.empty()) {
         std::cout << "OnCountDown: The next alarm is on " << nextAlarm.dayAndTime << ": " << nextAlarm.note << std::endl;
-        wxString s;
-        std::string adate = nextAlarm.dayAndTime.substr(0, 3);
         int hour = std::stoi(nextAlarm.dayAndTime.substr(4, 2));
         int min = std::stoi(nextAlarm.dayAndTime.substr(7, 2));
-        
+        wxString s;
         s.Printf("%d:%02d %s %s",
                     hour >= 12 ? hour -12: hour,
                     min,
@@ -293,9 +305,9 @@ static AlarmTime old_nextalarm;
                     nextAlarm.note.c_str()); 
         labelAlarmName->SetLabelText(s);
         this->Layout();
-        if(compareTimes(old_nextalarm, ct)){ // THIS NEVER BECOMES TRUE BECAUSE NEXTALARM UPDATES TOO SOON. I think.
-            printf("\n\nPLAYING ************\n\n");
-            startPlaying();                     // a static old_nextalarm is needed to do the comparison. DONE.
+
+        if(compareTimes(old_nextalarm, ct)){
+            startPlaying();
         }
     } else {
         labelAlarmName->SetLabelText("No next alarm found.");
@@ -303,27 +315,6 @@ static AlarmTime old_nextalarm;
         std::cout << "OnCountDown: No next alarm found." << std::endl;
     }
     old_nextalarm = nextAlarm;
-
-#else
-    // get current time formatted into an AlarmTime structure for comparison
-    AlarmTime ct{
-        .day = currentTime.Format("%a").ToStdString(), // extract day of week
-        .time = currentTime.FormatISOTime().ToStdString(), // extract ISO time
-    };
-
-    int n = 0; // for printing
-    std::vector<AlarmTime> at = alarms_dlg->getAlarms(); // get sorted alarms
-    for(std::vector<AlarmTime>::iterator atit = at.begin() ; atit != at.end(); ++atit){
-        if(atit->day == ct.day || atit->day == "ALL"){ // if day and ...
-            std::cout << n++ << " " << atit->day << " " << atit->time << " " << atit->note;
-            std::cout << " " << ct.day << " " << ct.time << std::endl;
-            if(atit->time == ct.time){ // ... time matches then set up to play alarm
-                startPlaying(*atit);
-            }
-        }
-    }
-    std::cout  << std::endl;
-#endif
 }
 
 

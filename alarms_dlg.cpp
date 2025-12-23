@@ -159,8 +159,6 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
     SetBackgroundColour(bgcol);
     dlg_close->SetForegroundColour(fgcol);
     dlg_close->SetBackgroundColour(bgcol);
-    // dlg_save->SetForegroundColour(fgcol);
-    // dlg_save->SetBackgroundColour(bgcol);
     
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmsDlg::OnClose, this, ID_DLG_CLOSE);
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &AlarmsDlg::OnSave, this, ID_DLG_SAVE);
@@ -171,45 +169,33 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
 
 }
 
-#ifndef DAYANDTIME_VERSION
-// Create a map to map weekdays to their order (Mon = 1, Tue = 2, ..., Sun = 7)
-std::map<std::string, int> weekdayOrder = {
-    {"Mon", 1}, {"Tue", 2}, {"Wed", 3}, {"Thu", 4},
-    {"Fri", 5}, {"Sat", 6}, {"Sun", 7}
-};
-
-// Custom comparison function
-bool compareSchedules(const AlarmTime& a, const AlarmTime& b) {
-    // If day is "ALL", consider it as having the lowest order (before all other days)
-    int orderA = (a.day == "ALL") ? -1 : weekdayOrder[a.day];
-    int orderB = (b.day == "ALL") ? -1 : weekdayOrder[b.day];
-
-    if (orderA != orderB) {
-        return orderA < orderB;
-    }
-
-    // If days are the same, compare times
-    int hoursA, minutesA, hoursB, minutesB;
-    sscanf(a.time.c_str(), "%d:%d", &hoursA, &minutesA);
-    sscanf(b.time.c_str(), "%d:%d", &hoursB, &minutesB);
-
-    if (hoursA != hoursB) {
-        return hoursA < hoursB;
-    }
-    return minutesA < minutesB;
-}
-#else
 
 // Function to parse time from a string in "DDD HH:MM" format and return it as minutes since the start of the week
 int parseTime(const std::string& dayAndTime) {
     int hours, minutes;
     char day[4];
     sscanf(dayAndTime.c_str(), "%3s %d:%d", day, &hours, &minutes);
+    wxDateTime dt = wxDateTime::Now();
 
-    // Map day abbreviations to their corresponding weekday numbers (0 = Sunday, 1 = Monday, etc.)
+    // got tired of messing with this function so I'm brute forcing it a bit.
+    // if day is "ALL"
+    if(!strcmp(day, "ALL"))
+    {
+        // and if current time is too late for an alarm today, add 1 day to make it tomorrow 
+        if( (hours * 60 + minutes) < (dt.GetHour() * 60 + dt.GetMinute()) ){
+            dt.SetDay(dt.GetDay() +1);
+            printf("%s is for ALL but it is too late in the day today, so changing it to %s\n",
+                dayAndTime.c_str(), dt.Format("%a").ToStdString().c_str());
+        }
+        // otherwise just change 'ALL' to today's  abbreviated name
+        strcpy(day, dt.Format("%a").char_str());
+        std::cout << "Day is 'ALL' changing " << dayAndTime << " to " << day << std::endl;
+    }
+
+    // Map day abbreviations to their corresponding weekday numbers
     std::map<std::string, int> dayOfWeekMap = {
         {"Mon", 1}, {"Tue", 2}, {"Wed", 3}, {"Thu", 4},
-        {"Fri", 5}, {"Sat", 6}, {"Sun", 7}, {"ALL", 8}
+        {"Fri", 5}, {"Sat", 6}, {"Sun", 7}
     };
     // Calculate total minutes since the start of the week
     int totalMinutes = (dayOfWeekMap[day] * 24 * 60) + (hours * 60) + minutes;
@@ -228,8 +214,6 @@ bool compareSchedules(const AlarmTime& a, const AlarmTime& b) {
     return timeA < timeB;
 }
 
-#endif
-
 std::vector<AlarmTime>& AlarmsDlg::getAlarms()
 {
     static std::vector<AlarmTime> at;
@@ -243,13 +227,8 @@ std::vector<AlarmTime>& AlarmsDlg::getAlarms()
         dt.SetHour(entryPtr->entry_spinHour->GetValue() + (entryPtr->entry_choiceAMPM->GetSelection() ? 12:0));
         dt.SetMinute(entryPtr->entry_spinMinute->GetValue());
         dt.SetSecond(0);
-#ifdef DAYANDTIME_VERSION
         a.dayAndTime = entryPtr->entry_choiceDay->GetString(entryPtr->entry_choiceDay->GetSelection());
         a.dayAndTime.append(dt.Format(" %H:%M"));
-#else
-        a.day = entryPtr->entry_choiceDay->GetString(entryPtr->entry_choiceDay->GetSelection());
-        a.time = dt.FormatISOTime();
-#endif
         a.note = entryPtr->entry_textCtrlNote->GetValue().ToStdString();
         at.push_back(a);
     }
