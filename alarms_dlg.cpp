@@ -178,8 +178,8 @@ int parseTime(const std::string& dayAndTime) {
     wxDateTime dt = wxDateTime::Now();
 
     // got tired of messing with this function so I'm brute forcing it a bit.
-    // if day is "ALL"
-    if(!strcmp(day, "ALL"))
+
+    if(!strcmp(day, "ALL")) // if day is "ALL"
     {
         // and if current time is too late for an alarm today, add 1 day to make it tomorrow 
         if( (hours * 60 + minutes) < (dt.GetHour() * 60 + dt.GetMinute()) ){
@@ -189,7 +189,7 @@ int parseTime(const std::string& dayAndTime) {
         }
         // otherwise just change 'ALL' to today's  abbreviated name
         strcpy(day, dt.Format("%a").char_str());
-        std::cout << "Day is 'ALL' changing " << dayAndTime << " to " << day << std::endl;
+        std::cout << "Day is 'ALL' changing " << dayAndTime << " to today: " << day << std::endl;
     }
 
     // Map day abbreviations to their corresponding weekday numbers
