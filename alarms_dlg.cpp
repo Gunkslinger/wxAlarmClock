@@ -12,29 +12,15 @@
 // matches the current time and day-of-week. if so the alarm is sounded.
 
 #include "enums.hpp"
-#include "wx/any.h"
-#include "wx/anybutton.h"
-#include "wx/arrstr.h"
 #include "wx/datetime.h"
-#include "wx/dialog.h"
-#include "wx/choice.h"
-#include "wx/button.h"
-#include "wx/dynarray.h"
-#include "wx/event.h"
-#include "wx/gdicmn.h"
-#include "wx/checkbox.h"
-#include "wx/gtk/colour.h"
-#include "wx/spinctrl.h"
+#include "wx/filectrl.h"
 #include "wx/sizer.h"
-#include "wx/stringimpl.h"
-#include "wx/textctrl.h"
-#include "wx/spinbutt.h"
-#include "wx/tglbtn.h"
-#include <cstddef>
 #include <cstdio>
 #include <ostream>
+#include "consts.hpp"
+#include "wx/utils.h"
 #include "alarms_dlg.hpp"
-#include <cstddef>
+
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -48,12 +34,15 @@ enum{
     ID_DLG_SPIN_HOURS = 1200,
     ID_DLG_SPIN_MINUTES = 1300,
     ID_DLG_AMPM_CHOICE = 1400,
-    ID_DLG_TEXTCTRL_NOTES = 1500
+    ID_DLG_TEXTCTRL_NOTES = 1500,
+    ID_DLG_FILECTRL = 1600,
+    ID_SNDFILE_BUTTON = 1700
 };
 
 // represents a single entry in the list of alarms the user has created.
-Entry::Entry(wxDialog *parent)
+Entry::Entry(wxDialog *parent, int n)
 {
+    entry_number = n;
     entrySizer = new wxBoxSizer(wxHORIZONTAL); // sizer to contain the entry elements
     entry_checkBoxEnable = new wxCheckBox(parent, ID_DLG_CB_ENABLE, "");
     entry_checkBoxEnable->SetValue(true);
@@ -79,6 +68,11 @@ Entry::Entry(wxDialog *parent)
     entrySizer->Add(entry_choiceAMPM, 0, 0);
     entry_textCtrlNote = new wxTextCtrl(parent, ID_DLG_TEXTCTRL_NOTES, "", wxDefaultPosition, wxSize(400, 10));
     entrySizer->Add(entry_textCtrlNote, 1, wxEXPAND);
+    entry_fileDialogSound = new wxFileDialog(NULL, "Choose a sound file", std::getenv("HOME"), "", "*.wav");
+    //entry_fileDialogSound->Hide();
+    entry_buttonSndFile = new wxButton(parent, ID_SNDFILE_BUTTON+entry_number, "default_sound.wav");
+    entrySizer->Add(entry_buttonSndFile, 0, 0);
+    Bind(wxEVT_COMMAND_BUTTON_CLICKED, &Entry::OnSoundFileButtonClicked, this, ID_SNDFILE_BUTTON+entry_number);
 };
 
 void Entry::set_colors(wxColor fg, wxColor bg){
@@ -91,10 +85,14 @@ void Entry::set_colors(wxColor fg, wxColor bg){
     entry_spinHour->SetBackgroundColour(bg);
     entry_spinMinute->SetForegroundColour(fg);
     entry_spinMinute->SetBackgroundColour(bg);
-     entry_choiceAMPM->SetForegroundColour(fg);
+    entry_choiceAMPM->SetForegroundColour(fg);
     entry_choiceAMPM->SetBackgroundColour(bg);
-   entry_textCtrlNote->SetForegroundColour(fg);
+    entry_textCtrlNote->SetForegroundColour(fg);
     entry_textCtrlNote->SetBackgroundColour(bg);
+    entry_fileDialogSound->SetForegroundColour(fg);
+    entry_fileDialogSound->SetBackgroundColour(bg);
+    entry_buttonSndFile->SetForegroundColour(fg);
+    entry_buttonSndFile->SetBackgroundColour(bg);
 }
 
 AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
@@ -104,7 +102,7 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
     fgcol = fg;
     bgcol = bg;
 
-    this->SetSize(800, 450);
+    this->SetSize(1000, 450);
     
     dlg_close = new wxButton(this, ID_DLG_CLOSE, "Close");
     dlg_save = new wxButton(this, ID_DLG_SAVE, "Save");
@@ -125,7 +123,7 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
     // the alarm_data object could be sent as a param to Entry's CTOR but what the heck.
 
     for(int n = 0; n < 7; n++){
-        Entry *ent = new Entry(this);
+        Entry *ent = new Entry(this, n);
 
         af >> alarm_data;
         ent->entry_checkBoxEnable->SetValue(alarm_data["enable"]);
@@ -169,13 +167,15 @@ AlarmsDlg::AlarmsDlg(wxWindow *parent, wxColor fg, wxColor bg)
 
 }
 
-
+extern wxDateTime& fakeNow(bool inc);
 // Function to parse time from a string in "DDD HH:MM" format and return it as minutes since the start of the week
 int parseTime(const std::string& dayAndTime) {
+    if(dayAndTime.length() == 0)
+        return 0;
     int hours, minutes;
     char day[4];
     sscanf(dayAndTime.c_str(), "%3s %d:%d", day, &hours, &minutes);
-    wxDateTime dt = wxDateTime::Now();
+    wxDateTime dt =  wxDateTime::Now();//fakeNow(false);
 
     // got tired of messing with this function so I'm brute forcing it a bit.
 
@@ -183,27 +183,59 @@ int parseTime(const std::string& dayAndTime) {
     {
         // and if current time is too late for an alarm today, add 1 day to make it tomorrow 
         if( (hours * 60 + minutes) < (dt.GetHour() * 60 + dt.GetMinute()) ){
-            dt.SetDay(dt.GetDay() +1);
-            printf("%s is for ALL but it is too late in the day today, so changing it to %s\n",
-                dayAndTime.c_str(), dt.Format("%a").ToStdString().c_str());
+            if(strcmp(day, "Sun")){ // if today is NOT Sunday, increment day
+                dt.SetDay(dt.GetDay() +1);
+                //dt.Add(wxDateSpan(0, 0, 0, 1));
+#ifdef DEBUG
+                printf("%s %d parseTime(): %s is for ALL but it is too late in the day today (%s), so changing it to %s\n",
+                    __FILE__,
+                    __LINE__,
+                    dayAndTime.c_str(),
+                    /*wxDateTime::Now()*/fakeNow(false).Format("%a %H:%M").ToStdString().c_str(),
+                    dt.Format("%a %H:%M").ToStdString().c_str());
+#endif
+            }else{ // if today IS Sunday, reset day incremented to Monday
+                dt.SetDay(1);
+                //dt.SetToWeekDayInSameWeek((wxDateTime::WeekDay) 1);
+            }
         }
-        // otherwise just change 'ALL' to today's  abbreviated name
-        strcpy(day, dt.Format("%a").char_str());
-        std::cout << "Day is 'ALL' changing " << dayAndTime << " to today: " << day << std::endl;
+        // in either case change 'ALL' to today's or tomorrow's abbreviated name
+        std::strcpy(day, dt.Format("%a").char_str());
     }
-
     // Map day abbreviations to their corresponding weekday numbers
     std::map<std::string, int> dayOfWeekMap = {
         {"Mon", 1}, {"Tue", 2}, {"Wed", 3}, {"Thu", 4},
         {"Fri", 5}, {"Sat", 6}, {"Sun", 7}
     };
+
+    // This version of the map jibes with wxDateTime::WeekDay enums
+    // std::map<std::string, int> dayOfWeekMap = { // takes string, returns int
+    //     {"Sun", 0}, {"Mon", 1}, {"Tue", 2}, {"Wed", 3},
+    //     {"Thu", 4}, {"Fri", 5}, {"Sat", 6}
+    // };
+
     // Calculate total minutes since the start of the week
-    int totalMinutes = (dayOfWeekMap[day] * 24 * 60) + (hours * 60) + minutes;
+    int totalMinutes = (dayOfWeekMap[day] * 24 * 60) + (hours * 60) + minutes; //int i = dayOfWeekMap[dt.Format("%a").ToStdString()];
+    if(totalMinutes > 10080)
+    {
+        std::cout << "correcting totalminutes overflow! " << totalMinutes << std::endl;
+        std::cout << "day = " << dayOfWeekMap[day] << " " << day << std::endl;
+        std::cout << "hours = " << hours << std::endl;
+        std::cout << "minutes = " << minutes << std::endl;
+        totalMinutes -= 10080;
+    }
+
+#ifdef DEBUG
+    printf("%s %d parseTime: totalMinutes = %d\n", __FILE__, __LINE__, totalMinutes);
+#endif
     return totalMinutes;
 }
 
 // Comparison function for sorting events by time
 bool compareSchedules(const AlarmTime& a, const AlarmTime& b) {
+#ifdef DEBUG
+    printf("%s %d compareSchedules: sorting in getAlarms()\n", __FILE__, __LINE__);
+#endif
     int timeA = parseTime(a.dayAndTime);
     int timeB = parseTime(b.dayAndTime);
 
@@ -219,11 +251,10 @@ std::vector<AlarmTime>& AlarmsDlg::getAlarms()
     static std::vector<AlarmTime> at;
     at.clear();
     AlarmTime a;
-
-    for (auto& entryPtr : entryVec) {
+    for (const auto& entryPtr : entryVec) {
         if(!entryPtr->entry_checkBoxEnable->GetValue())
             continue; // skip if disabled
-        wxDateTime dt = wxDateTime::Now();
+        wxDateTime dt = wxDateTime::Now();//fakeNow(false);
         dt.SetHour(entryPtr->entry_spinHour->GetValue() + (entryPtr->entry_choiceAMPM->GetSelection() ? 12:0));
         dt.SetMinute(entryPtr->entry_spinMinute->GetValue());
         dt.SetSecond(0);
@@ -232,8 +263,9 @@ std::vector<AlarmTime>& AlarmsDlg::getAlarms()
         a.note = entryPtr->entry_textCtrlNote->GetValue().ToStdString();
         at.push_back(a);
     }
-    
-    std::sort(at.begin(), at.end(), compareSchedules);
+
+    if(at.size() > 1)
+        std::sort(at.begin(), at.end(), compareSchedules);
 
     return at;
 }
@@ -252,7 +284,7 @@ void AlarmsDlg::OnSave(wxCommandEvent &e)
     alrm.append("/.config/wxAlarmClock/Alarms.json");
 
     std::ofstream f(alrm);
-    for (auto& entryPtr : entryVec) {
+    for (const auto& entryPtr : entryVec) {
         jentry =   {{"enable", entryPtr->entry_checkBoxEnable->GetValue()},
                     {"day", entryPtr->entry_choiceDay->GetSelection()},
                     {"hour", entryPtr->entry_spinHour->GetValue()},
@@ -272,3 +304,11 @@ void AlarmsDlg::OnClose(wxCommandEvent &e)
 {
     Close();
 }
+
+//TODO: currently not working yet.
+void Entry::OnSoundFileButtonClicked(wxCommandEvent &e)
+{
+    //entry_fileDialogSound->Show();
+    entry_buttonSndFile->SetLabel("hi!");
+    //std::cout << "hi there" << std::endl;
+} 

@@ -37,9 +37,9 @@ int get_old_vol() {
     if (std::regex_search(result, match, pattern)) {
         // Extract the percentage value
         percentage = std::stoi(match[1].str());
-        std::cout << "Old volume percentage " << percentage << std::endl;
+        //std::cout << "Old volume percentage " << percentage << std::endl;
     } else {
-        std::cout << "No percentage found." << std::endl;
+        //std::cout << "No percentage found." << std::endl;
         return -1;
     }
     return percentage;
@@ -47,7 +47,7 @@ int get_old_vol() {
 
 void set_vol(int new_vol)
 {
-    std::cout << "New volume percentage " << new_vol << std::endl;
+    //std::cout << "New volume percentage " << new_vol << std::endl;
     std::string cmd = "pactl set-sink-volume @DEFAULT_SINK@ ";
     cmd.append(std::to_string(new_vol));
     cmd.append("%");

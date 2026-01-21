@@ -3,11 +3,11 @@
 #include <wx/tglbtn.h>
 #include <wx/timer.h>
 #include <wx/event.h>
-#include "wx/list.h"
 #include "wx/sound.h"
 #include "pulse_audio.hpp"
 #include "alarms_dlg.hpp"
 
+// Main Window
 class AlarmControlFrame : public wxFrame
 {
 public:
@@ -22,17 +22,16 @@ public:
     wxBoxSizer *spinSizer;
     wxBoxSizer *mainSizer;
     wxTimer *timer;
-    wxSound *alarm;
+    wxSound *alarmPlayer;
     int old_volume;
     int new_volume;
     AlarmsDlg *alarms_dlg;
     void OnToggle(wxCommandEvent& event);
     void OnStartStop(wxCommandEvent& event);
-    void UpdateLabels(wxDateTime&);
+    void UpdateLabels(AlarmTime&);
     void OnCountDown(wxTimerEvent& event);
-    void MonitorIdle();
     void OnAnyUserActivity(wxKeyEvent& event);
     void OnExit(wxCommandEvent& event);
     void OnOpenDialog(wxCommandEvent &event);
-    void startPlaying();
+    void loopPlay();
 };
